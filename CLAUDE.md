@@ -11,11 +11,13 @@ Hub interno de gestión de proyectos de construcción retail/restaurante para **
 
 ## Comandos
 
+Este entorno usa **Bun** (no hay `npm`/`node` en el PATH). Usar:
+
 ```bash
-npm install         # primera vez
-npm run dev         # http://localhost:5173
-npm run build
-npm run preview
+bun install         # primera vez
+bun run dev         # http://localhost:5173
+bun run build
+bun run preview
 ```
 
 ## Estructura
