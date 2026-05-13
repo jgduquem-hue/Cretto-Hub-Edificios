@@ -525,7 +525,7 @@ const ProcurementScreen = ({ project }) => {
       <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
         <div>
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-14 z-20 bg-emerald-900 text-white shadow-md">
+            <thead className="sticky top-16 z-20 bg-emerald-900 text-white shadow-md">
               <tr>
                 <th className="px-3 py-2 text-[11px] font-medium uppercase tracking-wider">Razón social</th>
                 <th className="px-3 py-2 text-[11px] font-medium uppercase tracking-wider">NIT</th>
