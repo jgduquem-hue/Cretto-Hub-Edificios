@@ -1,9 +1,25 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Plus, Truck, Phone, User, Building2, CreditCard, Trash2, Download,
-  X, Mail, MessageCircle, ChevronDown
+  X, Mail, ChevronDown
 } from "lucide-react";
 import { PROVEEDORES_COSETTE_81, FORMAS_PAGO_SIMPLE, CATEGORIAS } from "./proveedores-data.js";
+
+/* ────────── Brand icons (SVG inline) ────────── */
+const WhatsAppIcon = ({ className = "h-4 w-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.825 9.825 0 001.692 5.518L2.95 21.34l3.704-.997zm6.668-7.078c-.197-.329-.519-.527-.872-.7-.353-.173-2.087-1.032-2.41-1.148-.324-.116-.56-.174-.795.174s-.911 1.148-1.117 1.384c-.207.236-.413.265-.766.088-.354-.177-1.494-.55-2.846-1.756-1.052-.939-1.763-2.099-1.969-2.453-.207-.354-.022-.545.155-.722.159-.158.354-.412.531-.618.177-.207.236-.354.354-.59.118-.236.059-.443-.029-.62-.087-.176-.795-1.916-1.089-2.624-.287-.69-.578-.595-.795-.605-.207-.01-.443-.012-.679-.012s-.62.087-.944.443c-.324.354-1.235 1.207-1.235 2.942 0 1.735 1.265 3.41 1.44 3.646.176.236 2.491 3.806 6.034 5.337.844.365 1.502.583 2.016.745.847.27 1.617.232 2.226.141.679-.102 2.087-.853 2.382-1.677.295-.825.295-1.531.207-1.677-.088-.147-.324-.236-.677-.413z"/>
+  </svg>
+);
+const GmailIcon = ({ className = "h-4 w-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path fill="#EA4335" d="M5.455 21H1.636A1.636 1.636 0 0 1 0 19.364V5.455l5.455 4.09V21z"/>
+    <path fill="#34A853" d="M24 19.364A1.636 1.636 0 0 1 22.364 21h-3.819V9.545L24 5.455v13.909z"/>
+    <path fill="#4285F4" d="M18.545 21V9.545L12 14.455l-6.545-4.91V21h13.09z"/>
+    <path fill="#FBBC05" d="M24 5.455v0L18.545 9.545 12 14.455V9.545l6.545-4.09L24 5.455z"/>
+    <path fill="#C5221F" d="M0 5.455v0l5.455 4.09L12 14.455V9.545L5.455 5.455 0 5.455z"/>
+  </svg>
+);
 
 const STORAGE_KEY = "procurement::cosette-81";
 
@@ -30,10 +46,36 @@ const formatPhone = (raw) => {
   if (d.length !== 10) return raw || "";
   return `+57 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
 };
-const whatsappUrl = (raw) => {
+const phoneDigitsFull = (raw) => {
+  // returns digits including country code (Colombia default 57)
   const d = phoneDigits(raw);
-  if (d.length !== 10) return null;
-  return `https://wa.me/57${d}`;
+  if (d.length === 10) return `57${d}`;
+  return (raw || "").replace(/\D/g, "");
+};
+const isValidPhone = (raw) => phoneDigits(raw).length === 10;
+const whatsappWebUrl = (raw) => isValidPhone(raw) ? `https://wa.me/${phoneDigitsFull(raw)}` : null;
+const whatsappDesktopUrl = (raw) => isValidPhone(raw) ? `whatsapp://send?phone=${phoneDigitsFull(raw)}` : null;
+
+/* ────────── Sanitización de entrada ────────── */
+// NIT: solo dígitos, agrupados de 3 con punto desde la izquierda.
+const sanitizeNIT = (raw) => {
+  const digits = (raw || "").replace(/\D/g, "");
+  return digits.match(/.{1,3}/g)?.join(".") || "";
+};
+// Teléfono: solo dígitos y "+" (uno solo, al inicio).
+const sanitizePhone = (raw) => {
+  let s = (raw || "").replace(/[^\d+]/g, "");
+  const hasPlus = s.includes("+");
+  s = s.replace(/\+/g, "");
+  return (hasPlus ? "+" : "") + s;
+};
+// Email válido si contiene @
+const isValidEmail = (raw) => !!(raw || "").match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+
+/* ────────── Gmail compose URL ────────── */
+const gmailComposeUrl = (email) => {
+  if (!isValidEmail(email)) return null;
+  return `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
 };
 
 /* ────────── Forma de pago helpers ────────── */
@@ -146,7 +188,7 @@ const SideDrawer = ({ open, onClose, initial, onSave, onDelete, proyectoNombre }
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <Field label="Razón social *" value={form.razonSocial} onChange={v => setForm({ ...form, razonSocial: v })} placeholder="Nombre comercial / razón social" />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="NIT" value={form.nit} onChange={v => setForm({ ...form, nit: v })} placeholder="900.000.000-0" />
+            <Field label="NIT" value={form.nit} onChange={v => setForm({ ...form, nit: sanitizeNIT(v) })} placeholder="900.123.456" mono inputMode="numeric" />
             <SelectField label="Categoría CAPEX" value={form.categoria} onChange={v => setForm({ ...form, categoria: v })} options={CATEGORIAS} />
           </div>
           <Field label="Servicio o producto" value={form.servicio} onChange={v => setForm({ ...form, servicio: v })} placeholder="¿Qué suministra?" />
@@ -157,8 +199,23 @@ const SideDrawer = ({ open, onClose, initial, onSave, onDelete, proyectoNombre }
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Teléfono (Colombia, 10 dígitos)" value={form.telefono} onChange={v => setForm({ ...form, telefono: v })} placeholder="300 123 4567" mono />
-            <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} placeholder="nombre@empresa.com" type="email" />
+            <Field
+              label="Teléfono (con +)"
+              value={form.telefono}
+              onChange={v => setForm({ ...form, telefono: sanitizePhone(v) })}
+              placeholder="+573001234567"
+              mono
+              inputMode="tel"
+              hint={form.telefono && !isValidPhone(form.telefono) ? "Ingresa 10 dígitos de Colombia (con +57)" : null}
+            />
+            <Field
+              label="Email"
+              value={form.email}
+              onChange={v => setForm({ ...form, email: v })}
+              placeholder="nombre@empresa.com"
+              type="email"
+              hint={form.email && !isValidEmail(form.email) ? "Debe contener @ y dominio" : null}
+            />
           </div>
 
           <div>
@@ -213,43 +270,78 @@ const SideDrawer = ({ open, onClose, initial, onSave, onDelete, proyectoNombre }
           </div>
         </div>
 
-        <footer className="flex items-center justify-between border-t border-stone-200 bg-stone-50 px-5 py-3">
-          {form.id ? (
-            <button
-              onClick={() => { if (confirm("¿Eliminar este proveedor?")) onDelete(form.id); }}
-              className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Eliminar
-            </button>
-          ) : <span />}
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50">
-              Cancelar
-            </button>
-            <button
-              onClick={() => onSave(form)}
-              disabled={!canSave}
-              className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {form.id ? "Guardar cambios" : "Agregar proveedor"}
-            </button>
+        <div className="border-t border-stone-200 bg-stone-50 px-5 py-3 space-y-3">
+          {/* Quick actions: WhatsApp + Gmail (only if data valid) */}
+          {(isValidPhone(form.telefono) || isValidEmail(form.email)) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {isValidPhone(form.telefono) && (
+                <a
+                  href={whatsappDesktopUrl(form.telefono)}
+                  className="inline-flex items-center gap-2 rounded-md bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#1ebe57]"
+                  title={`WhatsApp ${formatPhone(form.telefono)}`}
+                >
+                  <WhatsAppIcon className="h-4 w-4" />
+                  WhatsApp
+                </a>
+              )}
+              {isValidEmail(form.email) && (
+                <a
+                  href={gmailComposeUrl(form.email)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50"
+                  title={`Nuevo correo a ${form.email}`}
+                >
+                  <GmailIcon className="h-4 w-4" />
+                  Gmail
+                </a>
+              )}
+              <span className="ml-auto text-[10px] text-stone-400">
+                {isValidPhone(form.telefono) && <span>📱 {formatPhone(form.telefono)}</span>}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            {form.id ? (
+              <button
+                onClick={() => { if (confirm("¿Eliminar este proveedor?")) onDelete(form.id); }}
+                className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Eliminar
+              </button>
+            ) : <span />}
+            <div className="flex items-center gap-2">
+              <button onClick={onClose} className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50">
+                Cancelar
+              </button>
+              <button
+                onClick={() => onSave(form)}
+                disabled={!canSave}
+                className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {form.id ? "Guardar cambios" : "Agregar proveedor"}
+              </button>
+            </div>
           </div>
-        </footer>
+        </div>
       </aside>
     </>
   );
 };
 
-const Field = ({ label, value, onChange, placeholder, type = "text", mono = false }) => (
+const Field = ({ label, value, onChange, placeholder, type = "text", mono = false, inputMode, hint }) => (
   <label className="block">
     <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-stone-500">{label}</span>
     <input
       type={type}
+      inputMode={inputMode}
       value={value || ""}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm placeholder-stone-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 ${mono ? "font-mono tabular-nums" : ""}`}
+      className={`w-full rounded-md border ${hint ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500" : "border-stone-300 focus:border-emerald-500 focus:ring-emerald-500"} bg-white px-3 py-1.5 text-sm placeholder-stone-300 focus:outline-none focus:ring-1 ${mono ? "font-mono tabular-nums" : ""}`}
     />
+    {hint && <span className="mt-0.5 block text-[10px] text-rose-600">{hint}</span>}
   </label>
 );
 
@@ -428,10 +520,10 @@ const ProcurementScreen = ({ project }) => {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
+        <div>
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-emerald-900 text-white shadow-sm">
+            <thead className="sticky top-0 z-20 bg-emerald-900 text-white shadow-md">
               <tr>
                 <th className="px-3 py-2 text-[11px] font-medium uppercase tracking-wider">Razón social</th>
                 <th className="px-3 py-2 text-[11px] font-medium uppercase tracking-wider">NIT</th>
@@ -448,7 +540,7 @@ const ProcurementScreen = ({ project }) => {
                 <tr><td colSpan={8} className="px-3 py-6 text-center text-sm text-stone-400">Sin proveedores en esta categoría.</td></tr>
               )}
               {filtered.map((p, idx) => {
-                const wa = whatsappUrl(p.telefono);
+                const wa = whatsappWebUrl(p.telefono);
                 return (
                   <tr
                     key={p.id}
@@ -489,7 +581,7 @@ const ProcurementScreen = ({ project }) => {
                             className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-xs text-emerald-800 hover:bg-emerald-100"
                             title="Abrir WhatsApp"
                           >
-                            <MessageCircle className="h-3 w-3" /> {formatPhone(p.telefono)}
+                            <WhatsAppIcon className="h-3 w-3" /> {formatPhone(p.telefono)}
                           </a>
                         ) : (
                           <span className="font-mono text-xs text-stone-700">{p.telefono}</span>
