@@ -97,10 +97,13 @@ const fmtCOP = (n) => {
 
 const fmtCOPshort = (n) => {
   if (n == null || isNaN(n)) return "$0";
-  if (Math.abs(n) >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
-  if (Math.abs(n) >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
-  if (Math.abs(n) >= 1e3) return "$" + (n / 1e3).toFixed(0) + "K";
-  return "$" + Math.round(n);
+  // COP siempre: sin decimales, sin sufijo "B". Para valores >= 1M se usa "M"
+  // con separador de miles, así un billón se ve como "$7.200M" en vez de "$7.20B".
+  const thousands = (v) => Math.round(v).toLocaleString("es-CO").replace(/,/g, ".");
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return "$" + thousands(n / 1e6) + "M";
+  if (abs >= 1e3) return "$" + thousands(n / 1e3) + "K";
+  return "$" + thousands(n);
 };
 
 const fmtPct = (n) => (n == null || isNaN(n) ? "0%" : `${n.toFixed(1)}%`);
