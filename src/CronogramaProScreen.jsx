@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Calendar, ListTree, BarChart3, Plus, X, ChevronRight, ChevronDown,
-  Zap, AlertTriangle, Trash2, CheckCircle2, Circle, Diamond
+  Zap, AlertTriangle, Trash2, CheckCircle2, Circle, Diamond, Info
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────
@@ -1051,9 +1051,8 @@ const TaskDrawer = ({ task, tareas, phases, onClose, onSave, onDelete }) => {
 
           {/* Dependency editor */}
           <Field label={`Predecesores (${form.dependencies.length})`}>
-            <p className="mb-2 text-[10px] text-stone-500">
-              FS = Fin → Inicio · SS = Inicio → Inicio · FF = Fin → Fin · SF = Inicio → Fin. Lag (+/−) en días.
-            </p>
+            <DepsInfoBox />
+
             <div className="space-y-1.5">
               {form.dependencies.map(d => {
                 const pred = tareas.find(t => t.id === d.id);
@@ -1134,5 +1133,55 @@ const Field = ({ label, children }) => (
     {children}
   </label>
 );
+
+/* ─────────── DepsInfoBox: tooltip (i) desplegable con tipos de dependencia ─────────── */
+const DepsInfoBox = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-2">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-[10px] text-stone-600 hover:bg-stone-100"
+        aria-expanded={open}
+      >
+        <Info className="h-3 w-3" />
+        <span>Tipos de dependencia</span>
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-md border border-stone-200 bg-white p-3 text-[11px] leading-relaxed text-stone-700 shadow-sm">
+          <div className="grid grid-cols-[40px_1fr] gap-x-2 gap-y-1.5">
+            <code className="font-mono font-semibold text-emerald-800">FS</code>
+            <div><strong>Fin → Inicio.</strong> El predecesor debe terminar para que la actividad pueda iniciar. Es el tipo más común (≈90% de los casos en obra).</div>
+            <code className="font-mono font-semibold text-emerald-800">SS</code>
+            <div><strong>Inicio → Inicio.</strong> Ambas inician al tiempo (o con un desfase). Útil cuando dos cuadrillas trabajan en paralelo desde el mismo punto.</div>
+            <code className="font-mono font-semibold text-emerald-800">FF</code>
+            <div><strong>Fin → Fin.</strong> Ambas terminan al tiempo. Útil cuando el cierre de una actividad depende del cierre de otra (ej. limpieza final de un piso).</div>
+            <code className="font-mono font-semibold text-emerald-800">SF</code>
+            <div><strong>Inicio → Fin.</strong> El predecesor inicia y la sucesora termina (raro, usado en just-in-time).</div>
+          </div>
+
+          <div className="mt-3 border-t border-stone-100 pt-2">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">Lag</div>
+            <div className="text-stone-600">
+              Días de espera (positivo) o adelanto (negativo) entre las dos actividades.
+              Ej. <code className="rounded bg-stone-100 px-1 py-0.5 font-mono">FS +3</code> = "empieza 3 días después de que termine el predecesor".
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-md border border-emerald-100 bg-emerald-50/50 p-2">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Ejemplo</div>
+            <div className="text-stone-700">
+              <strong>Pintura de muros</strong> tiene como predecesor <strong>Pañete</strong> con tipo <code className="rounded bg-white px-1 py-0.5 font-mono">FS +2</code>:
+              la pintura empieza <strong>2 días después</strong> de terminar el pañete (tiempo de secado).
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default CronogramaProScreen;
