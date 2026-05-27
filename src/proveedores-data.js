@@ -1,0 +1,100 @@
+// Listado base de proveedores asociados al proyecto Cosette 81.
+// Schema por proveedor:
+//   id, razonSocial, nit, servicio (texto), categoria (CAPEX),
+//   email, telefono, contacto, cargo, formaPago, proyecto
+//
+// formaPago puede ser:
+//   - string: "" | "Crédito 15" | "Crédito 30" | "Crédito 60"
+//   - objeto { type: "Anticipado", installments: [{pct, condicion}, ...] } máx 3 pagos
+//
+// Persistencia en window.storage con clave "procurement::cosette-81".
+
+export const CATEGORIAS = [
+  "Acero",
+  "Avisos y Señalización",
+  "Calefacción",
+  "Construcción",
+  "Diseño Arquitectónico",
+  "Equipo",
+  "Extracción",
+  "Iluminación",
+  "Jardinería",
+  "Menaje",
+  "Mobiliario",
+  "Tecnología",
+  "Varios",
+  "Project Management"
+];
+
+export const FORMAS_PAGO_SIMPLE = ["", "Anticipado", "Crédito 15", "Crédito 30", "Crédito 60"];
+
+export const PROVEEDORES_COSETTE_81 = [
+  { id: 1,  razonSocial: "ABC Plantas",                              categoria: "Jardinería",            servicio: "Plantas y arreglos jardín",                            nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 2,  razonSocial: "Acopio",                                   categoria: "Menaje",                servicio: "Papel industrial y dispensadores (Kimberly Clark)",     nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 3,  razonSocial: "Aldelo",                                   categoria: "Tecnología",            servicio: "POS, software y periféricos",                           nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 4,  razonSocial: "Alteca",                                   categoria: "Calefacción",           servicio: "Calefacción eléctrica (paneles Thermaheat)",            nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 5,  razonSocial: "Amazon",                                   categoria: "Menaje",                servicio: "Menaje, iluminación y varios — importación",            nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "Anticipado", proyecto: "Cosette 81" },
+  { id: 6,  razonSocial: "Ambiente Gourmet",                         categoria: "Menaje",                servicio: "Vajilla, utensilios, azucareras",                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 7,  razonSocial: "Aua",                                      categoria: "Equipo",                servicio: "Filtro de agua",                                        nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 8,  razonSocial: "Audionics",                                categoria: "Tecnología",            servicio: "Sistema de sonido — diseño e instalación",              nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 9,  razonSocial: "Barba Puntilla",                           categoria: "Menaje",                servicio: "Tablas de madera y accesorios bar",                     nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 10, razonSocial: "Bartending",                               categoria: "Menaje",                servicio: "Menaje y dotación de bar",                              nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 11, razonSocial: "BBG",                                      categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 12, razonSocial: "Business People",                          categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 13, razonSocial: "Cachivaches",                              categoria: "Menaje",                servicio: "Varios decorativos",                                    nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 14, razonSocial: "Carmiña Villegas",                         categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 15, razonSocial: "Casa Ideas",                               categoria: "Menaje",                servicio: "Menaje y decoración",                                   nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 16, razonSocial: "Condor",                                   categoria: "Menaje",                servicio: "Utensilios de cocina",                                  nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 17, razonSocial: "Crisloza",                                 categoria: "Menaje",                servicio: "Cerámica — vajilla y platos",                           nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 18, razonSocial: "Daniel Real",                              categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 19, razonSocial: "Detiketa",                                 categoria: "Tecnología",            servicio: "Impresora de rótulos",                                  nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 20, razonSocial: "Devoción",                                 categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 21, razonSocial: "Dinastía",                                 categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 22, razonSocial: "DLK",                                      categoria: "Varios",                servicio: "Cliente del proyecto",                                  nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 23, razonSocial: "DLK Importaciones",                        categoria: "Varios",                servicio: "Importaciones del cliente",                             nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 24, razonSocial: "Dollar City",                              categoria: "Menaje",                servicio: "Utilería de bajo costo",                                nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 25, razonSocial: "Drinkstuff",                               categoria: "Menaje",                servicio: "Insumos de bar",                                        nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 26, razonSocial: "Duque Arquitectura",                       categoria: "Construcción",          servicio: "Contratista general (admin. delegada)",                 nit: "", email: "", telefono: "", contacto: "Esteban Duque", cargo: "Representante Legal", formaPago: "Crédito 30", proyecto: "Cosette 81" },
+  { id: 27, razonSocial: "Electrolux",                               categoria: "Equipo",                servicio: "Equipos de cocina",                                     nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 28, razonSocial: "Eurolink",                                 categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 29, razonSocial: "Fantasy",                                  categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 30, razonSocial: "Fer y Ale",                                categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 31, razonSocial: "Ferretería Multicentro",                   categoria: "Varios",                servicio: "Ferretería — herramientas y varios",                    nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 32, razonSocial: "Flamecorp",                                categoria: "Calefacción",           servicio: "Calefacción a gas",                                     nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 33, razonSocial: "Fruver Granadino",                         categoria: "Varios",                servicio: "Insumos de cocina",                                     nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 34, razonSocial: "Galeria Rattan",                           categoria: "Mobiliario",            servicio: "Sillas y muebles de rattan",                            nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 35, razonSocial: "Hobart",                                   categoria: "Equipo",                servicio: "Lavavajillas industriales",                             nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 36, razonSocial: "Home Sentry",                              categoria: "Menaje",                servicio: "Menaje y decoración",                                   nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 37, razonSocial: "Homecenter",                               categoria: "Varios",                servicio: "Ferretería, materiales y varios",                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 38, razonSocial: "Hot Trade",                                categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 39, razonSocial: "Ikea",                                     categoria: "Mobiliario",            servicio: "Mobiliario y menaje",                                   nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 40, razonSocial: "Industrias Cruz",                          categoria: "Varios",                servicio: "Lockers metálicos lámina Cold Rolled",                  nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 41, razonSocial: "Ing Gastronomica",                         categoria: "Extracción",            servicio: "Sistema de extracción e inyección",                     nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 42, razonSocial: "Ingeniería Investigación y Ambiente S.A.", categoria: "Construcción",          servicio: "Estudios técnicos y ambientales",                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 43, razonSocial: "Joserrago",                                categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 44, razonSocial: "Juan de Hoyos",                            categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 45, razonSocial: "Kitchenaid",                               categoria: "Equipo",                servicio: "Pequeños electrodomésticos",                            nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 46, razonSocial: "Kitech",                                   categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 47, razonSocial: "Ktronix",                                  categoria: "Tecnología",            servicio: "Equipos de operación",                                  nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 48, razonSocial: "Le Creuset",                               categoria: "Menaje",                servicio: "Menaje premium — ollas y vajilla",                      nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 49, razonSocial: "Leal Group",                               categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 50, razonSocial: "Loto del Sur",                             categoria: "Menaje",                servicio: "Amenidades de baños (jabones, etc.)",                   nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 51, razonSocial: "Mercadeo",                                 categoria: "Varios",                servicio: "Mercadeo y publicidad",                                 nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 52, razonSocial: "Mesas y Sillas",                           categoria: "Mobiliario",            servicio: "Mesas y sillas",                                        nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 53, razonSocial: "Onalak",                                   categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 54, razonSocial: "Oporto",                                   categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 55, razonSocial: "Orquidea",                                 categoria: "Jardinería",            servicio: "Arreglos florales y jardinería",                        nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 56, razonSocial: "Pallomaro",                                categoria: "Equipo",                servicio: "Equipos de cocina industrial",                          nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 57, razonSocial: "Pricesmart",                               categoria: "Varios",                servicio: "Insumos al por mayor",                                  nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 58, razonSocial: "Produequipos",                             categoria: "Acero",                 servicio: "Equipos en acero inoxidable",                           nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 59, razonSocial: "Rosental",                                 categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 60, razonSocial: "Silicio Seguridad Electrónica",            categoria: "Tecnología",            servicio: "CCTV Hikvision y sistema DVR",                          nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 61, razonSocial: "Studio Manrique",                          categoria: "Diseño Arquitectónico", servicio: "Diseño arquitectónico y de iluminación",                nit: "", email: "", telefono: "", contacto: "Alberto Manrique", cargo: "Gerente General", formaPago: "Crédito 30", proyecto: "Cosette 81" },
+  { id: 62, razonSocial: "Suministros y Servicios Hoteleros",        categoria: "Menaje",                servicio: "Menaje y dotación hotelera",                            nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 63, razonSocial: "Tybso",                                    categoria: "Menaje",                servicio: "Menaje",                                                nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 64, razonSocial: "Urbana Consultores",                       categoria: "Construcción",          servicio: "Gestión de licencia de construcción",                   nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 65, razonSocial: "Victor Malpica",                           categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 66, razonSocial: "Victoria",                                 categoria: "Varios",                servicio: "",                                                       nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 67, razonSocial: "WinterHalter",                             categoria: "Equipo",                servicio: "Lavavajillas industrial",                               nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" },
+  { id: 68, razonSocial: "Zara Home",                                categoria: "Menaje",                servicio: "Textiles y decoración",                                 nit: "", email: "", telefono: "", contacto: "", cargo: "", formaPago: "", proyecto: "Cosette 81" }
+];

@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell,
   AreaChart, Area, ReferenceLine
 } from "recharts";
+import ProcurementScreen from "./ProcurementScreen.jsx";
 
 /* ───────────────────────── DATA ───────────────────────── */
 
@@ -96,10 +97,13 @@ const fmtCOP = (n) => {
 
 const fmtCOPshort = (n) => {
   if (n == null || isNaN(n)) return "$0";
-  if (Math.abs(n) >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
-  if (Math.abs(n) >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
-  if (Math.abs(n) >= 1e3) return "$" + (n / 1e3).toFixed(0) + "K";
-  return "$" + Math.round(n);
+  // COP siempre: sin decimales, sin sufijo "B". Para valores >= 1M se usa "M"
+  // con separador de miles, así un billón se ve como "$7.200M" en vez de "$7.20B".
+  const thousands = (v) => Math.round(v).toLocaleString("es-CO").replace(/,/g, ".");
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return "$" + thousands(n / 1e6) + "M";
+  if (abs >= 1e3) return "$" + thousands(n / 1e3) + "K";
+  return "$" + thousands(n);
 };
 
 const fmtPct = (n) => (n == null || isNaN(n) ? "0%" : `${n.toFixed(1)}%`);
@@ -267,7 +271,8 @@ const COMMANDS = [
   { id: "newitem", label: "Agregar item al CAPEX", desc: "Nuevo equipo, menaje, mobiliario...", action: "navigate", target: "capex", subAction: "new", icon: Plus, group: "Acciones" },
   { id: "weekly", label: "Generar acta de comité semanal", desc: "Plantilla con 6 bloques", action: "navigate", target: "informes", subAction: "weekly", icon: FileCheck, group: "Acciones" },
   { id: "risks", label: "Ver registro de riesgos", desc: "Riesgos identificados y mitigaciones", action: "navigate", target: "riesgos", icon: AlertTriangle, group: "Acciones" },
-  { id: "change", label: "Solicitud de cambio", desc: "Crear control de cambios", action: "navigate", target: "cambios", icon: Edit3, group: "Acciones" }
+  { id: "change", label: "Solicitud de cambio", desc: "Crear control de cambios", action: "navigate", target: "cambios", icon: Edit3, group: "Acciones" },
+  { id: "procurement", label: "Abrir Procurement", desc: "Listado de proveedores del proyecto", action: "navigate", target: "procurement", icon: Truck, group: "Proyecto activo" }
 ];
 
 const CommandPalette = ({ open, onClose, onCommand, query, setQuery }) => {
@@ -559,7 +564,10 @@ const HomeScreen = ({ projects, onSelect, onNew, onInfo }) => {
         <div>
           <p className="text-[11px] uppercase tracking-[0.15em] text-stone-400">Cretto · Expanding Brands</p>
           <h1 className="mt-1 font-serif text-[34px] leading-[1.1] tracking-tight text-stone-900">
-            Buen lunes, Jose.
+            {(() => {
+              const dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+              return `Buen ${dias[new Date().getDay()]}, Jose.`;
+            })()}
           </h1>
           <p className="mt-2 text-sm text-stone-500">
             {totalActive} proyectos activos · {fmtCOPshort(totalCapex)} en CAPEX bajo gerencia
@@ -634,7 +642,8 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
     { id: "evm", title: "EVM Dashboard", desc: "Earned Value · CPI · SPI · curvas", icon: BarChart3, count: "94%", sub: "CPI consolidado", color: "from-amber-50 to-white", iconColor: "text-amber-700" },
     { id: "documentos", title: "Documentos", desc: "11 entregables PMI del proyecto", icon: FileText, count: 11, sub: "documentos PMI", color: "from-stone-100 to-white", iconColor: "text-stone-700" },
     { id: "informes", title: "Informes", desc: "Generador semanal · mensual · cierre", icon: FileCheck, count: 18, sub: "informes generados", color: "from-rose-50 to-white", iconColor: "text-rose-700" },
-    { id: "riesgos", title: "Riesgos & Cambios", desc: "Registro de riesgos y solicitudes", icon: AlertTriangle, count: 7, sub: "abiertos", color: "from-violet-50 to-white", iconColor: "text-violet-700" }
+    { id: "riesgos", title: "Riesgos & Cambios", desc: "Registro de riesgos y solicitudes", icon: AlertTriangle, count: 7, sub: "abiertos", color: "from-violet-50 to-white", iconColor: "text-violet-700" },
+    { id: "procurement", title: "Procurement", desc: "Proveedores, contactos y forma de pago", icon: Truck, count: 68, sub: "proveedores", color: "from-teal-50 to-white", iconColor: "text-teal-700" }
   ];
 
   return (
@@ -2774,6 +2783,7 @@ function CrettoApp() {
     else if (tool === "informes") navigateTo("informes");
     else if (tool === "documentos") navigateTo("documentos");
     else if (tool === "riesgos") navigateTo("riesgos");
+    else if (tool === "procurement") navigateTo("procurement");
   };
 
   const handleCommand = (cmdId) => {
@@ -2790,6 +2800,7 @@ function CrettoApp() {
       case "go-informes": setSelectedProject(activeProject); navigateTo("informes"); break;
       case "go-documentos": setSelectedProject(activeProject); navigateTo("documentos"); break;
       case "go-riesgos": setSelectedProject(activeProject); navigateTo("riesgos"); break;
+      case "go-procurement": setSelectedProject(activeProject); navigateTo("procurement"); break;
       case "new-item":
         setSelectedProject(activeProject);
         setAutoOpenNewItem(true);
@@ -2810,6 +2821,7 @@ function CrettoApp() {
     else if (screen === "informes") crumbs.push({ label: "Informes" });
     else if (screen === "documentos") crumbs.push({ label: "Documentos" });
     else if (screen === "riesgos") crumbs.push({ label: "Riesgos" });
+    else if (screen === "procurement") crumbs.push({ label: "Procurement" });
     return crumbs;
   }, [screen, selectedProject]);
 
@@ -2829,9 +2841,7 @@ function CrettoApp() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900" style={{ fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
-      <Sidebar screen={screen} onNav={onNav} />
-
-      <div className="ml-14">
+      <div>
         <TopBar
           onSearch={() => setPaletteOpen(true)}
           onBack={handleBack}
@@ -2897,6 +2907,11 @@ function CrettoApp() {
             <RiesgosScreen
               project={selectedProject || activeProject}
               onInfo={(k) => setInfoKey(k)}
+            />
+          )}
+          {screen === "procurement" && (
+            <ProcurementScreen
+              project={selectedProject || activeProject}
             />
           )}
         </main>
