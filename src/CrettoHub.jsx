@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell,
   AreaChart, Area, ReferenceLine
 } from "recharts";
+import CronogramaProScreen from "./CronogramaProScreen.jsx";
 import ProcurementScreen from "./ProcurementScreen.jsx";
 
 /* ───────────────────────── DATA ───────────────────────── */
@@ -2876,7 +2877,7 @@ function CrettoApp() {
             />
           )}
           {screen === "cronograma" && (
-            <CronogramaScreen
+            <CronogramaProScreen
               tareas={tareas}
               onTareasChange={setTareas}
               onInfo={(k) => setInfoKey(k)}
