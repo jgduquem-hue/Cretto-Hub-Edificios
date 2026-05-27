@@ -401,11 +401,12 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
   const containerRef = useRef(null);
 
   // Auto-scroll horizontal para centrar el día de hoy al montar
+  // (suma 360 = ancho de la columna sticky-left de WBS)
   useEffect(() => {
     if (!containerRef.current) return;
-    const todayX = daysBetween(minDate, new Date()) * DAY_W;
+    const todayInScroll = 360 + daysBetween(minDate, new Date()) * DAY_W;
     const half = containerRef.current.clientWidth / 2;
-    containerRef.current.scrollLeft = Math.max(0, todayX - half);
+    containerRef.current.scrollLeft = Math.max(0, todayInScroll - half);
   }, [minDate]);
 
   // Build row index for each task (for arrow positioning)
@@ -449,198 +450,217 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
   // Today line
   const todayX = dayToX(new Date());
 
+  const LEFT_W = 360;
+  const HEADER_H = 40;
+  const fullWidth = LEFT_W + totalWidth;
+
+  // Pre-computed row layout: list of { kind: 'phase' | 'task', y, phase, task }
+  const rowLayout = useMemo(() => {
+    const out = [];
+    let y = 0;
+    phases.forEach(p => {
+      out.push({ kind: "phase", y, phase: p });
+      y += PHASE_H;
+      if (!collapsedPhases.has(p.name)) {
+        p.items.forEach(t => {
+          out.push({ kind: "task", y, phase: p, task: t });
+          y += ROW_H;
+        });
+      }
+    });
+    return { rows: out, totalY: y };
+  }, [phases, collapsedPhases]);
+
   return (
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
-      <div className="flex">
-        {/* Left: task list */}
-        <div className="w-[360px] shrink-0 border-r border-stone-200 bg-stone-50/50">
-          {/* Header */}
-          <div className="sticky top-[57px] z-30 flex h-10 items-center gap-2 border-b border-stone-200 bg-stone-100 px-3 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
-            <div className="w-12">WBS</div>
-            <div className="flex-1">Actividad</div>
-            <div className="w-12 text-right">Días</div>
-          </div>
-          {phases.map(p => (
-            <React.Fragment key={p.name}>
-              <div
-                onClick={() => onTogglePhase(p.name)}
-                className="flex cursor-pointer items-center gap-1 border-b border-stone-200 bg-stone-100 px-3 text-[12px] font-semibold text-stone-800 hover:bg-stone-200/70"
-                style={{ height: PHASE_H }}
-              >
-                {collapsedPhases.has(p.name) ? <ChevronRight className="h-3 w-3 text-stone-500" /> : <ChevronDown className="h-3 w-3 text-stone-500" />}
-                <span className="w-10 font-mono text-[10px] text-stone-500">{p.wbs}</span>
-                <span className="flex-1 truncate">{p.name}</span>
-                <span className="font-mono text-[10px] text-stone-500">{p.items.length}</span>
-              </div>
-              {!collapsedPhases.has(p.name) && p.items.map(t => {
-                const c = cpm.get(t.id);
-                const isCrit = c?.critical;
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => onEdit(t)}
-                    className={`flex cursor-pointer items-center gap-2 border-b border-stone-100 px-3 text-[12px] hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/40" : ""}`}
-                    style={{ height: ROW_H }}
-                  >
-                    <span className="w-12 font-mono text-[10px] text-stone-400">{t.wbs}</span>
-                    {t.isMilestone && <Diamond className="h-3 w-3 text-amber-600" />}
-                    <span className="flex-1 truncate text-stone-800">{t.tarea}</span>
-                    <span className="w-10 text-right font-mono text-[10px] text-stone-500">{c?.duracion || 0}d</span>
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
+      <div
+        ref={containerRef}
+        style={{ overflowX: "scroll", overflowY: "clip" }}
+      >
+        <div className="relative" style={{ width: fullWidth }}>
 
-        {/* Right: timeline */}
-        <div className="relative flex-1" ref={containerRef} style={{ overflowX: "scroll", overflowY: "clip" }}>
-          <div style={{ width: totalWidth, minHeight: totalHeight + 40 }}>
-            {/* Month header */}
-            <div className="sticky top-[57px] z-30 flex h-10 border-b border-stone-200 bg-stone-100">
+          {/* HEADER ROW — sticky-top. Contiene la celda WBS (sticky-left) + el header de meses */}
+          <div
+            className="sticky top-[57px] z-30 flex border-b border-stone-200 bg-stone-100"
+            style={{ height: HEADER_H }}
+          >
+            <div
+              className="sticky left-0 z-40 flex items-center gap-2 border-r border-stone-200 bg-stone-100 px-3 text-[10px] font-semibold uppercase tracking-wider text-stone-600"
+              style={{ width: LEFT_W, height: HEADER_H }}
+            >
+              <div className="w-12">WBS</div>
+              <div className="flex-1">Actividad</div>
+              <div className="w-12 text-right">Días</div>
+            </div>
+            <div className="relative" style={{ width: totalWidth, height: HEADER_H }}>
               {monthMarkers.map((m, i) => {
                 const x = dayToX(m);
                 const nextX = i < monthMarkers.length - 1 ? dayToX(monthMarkers[i + 1]) : totalWidth;
                 return (
                   <div
                     key={i}
-                    className="absolute top-0 flex h-10 items-center justify-center text-[10px] font-semibold uppercase tracking-wider text-stone-600"
-                    style={{ left: x, width: nextX - x, borderRight: "1px solid #E7E5E4" }}
+                    className="absolute top-0 flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider text-stone-600"
+                    style={{ left: x, width: nextX - x, height: HEADER_H, borderRight: "1px solid #E7E5E4" }}
                   >
                     {m.toLocaleDateString("es-CO", { month: "short", year: "2-digit" })}
                   </div>
                 );
               })}
             </div>
+          </div>
 
-            <div className="relative">
-              {/* Vertical grid */}
-              {monthMarkers.map((m, i) => (
-                <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m) }} />
-              ))}
-
-              {/* Today line — siempre visible porque el rango incluye new Date() */}
-              {todayX >= 0 && todayX <= totalWidth && (
-                <div className="pointer-events-none absolute top-0 z-30 h-full" style={{ left: todayX }}>
-                  <div className="h-full w-[2px] bg-emerald-600 shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
-                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
-                    Hoy · {new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+          {/* BODY ROWS */}
+          {rowLayout.rows.map((r, idx) => {
+            if (r.kind === "phase") {
+              const p = r.phase;
+              const phStart = p.items.length ? Math.min(...p.items.map(t => parseDate(t.inicio).getTime())) : null;
+              const phEnd   = p.items.length ? Math.max(...p.items.map(t => parseDate(t.fin).getTime())) : null;
+              const x = phStart ? dayToX(new Date(phStart)) : 0;
+              const w = phEnd ? dayToX(new Date(phEnd)) - x : 0;
+              return (
+                <div key={`ph:${p.name}`} className="flex border-b border-stone-200 bg-stone-50/30" style={{ height: PHASE_H }}>
+                  <div
+                    onClick={() => onTogglePhase(p.name)}
+                    className="sticky left-0 z-20 flex shrink-0 cursor-pointer items-center gap-1 border-r border-stone-200 bg-stone-100 px-3 text-[12px] font-semibold text-stone-800 hover:bg-stone-200/70"
+                    style={{ width: LEFT_W, height: PHASE_H }}
+                  >
+                    {collapsedPhases.has(p.name)
+                      ? <ChevronRight className="h-3 w-3 text-stone-500" />
+                      : <ChevronDown className="h-3 w-3 text-stone-500" />}
+                    <span className="w-10 font-mono text-[10px] text-stone-500">{p.wbs}</span>
+                    <span className="flex-1 truncate">{p.name}</span>
+                    <span className="font-mono text-[10px] text-stone-500">{p.items.length}</span>
+                  </div>
+                  <div className="relative" style={{ width: totalWidth, height: PHASE_H }}>
+                    {w > 0 && (
+                      <div
+                        className="absolute top-[10px] h-3 rounded-sm"
+                        style={{ left: x, width: Math.max(w, 4), background: "#1F3D2E", opacity: 0.85 }}
+                      >
+                        <span className="absolute -left-1 top-1/2 h-3 w-1 -translate-y-1/2" style={{ borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "0", borderRight: "6px solid #1F3D2E" }} />
+                        <span className="absolute -right-1 top-1/2 h-3 w-1 -translate-y-1/2" style={{ borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "6px solid #1F3D2E", borderRight: "0" }} />
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              );
+            }
 
-              {/* Rows */}
-              {(() => {
-                let y = 0;
-                const out = [];
-                phases.forEach(p => {
-                  // phase row background (summary bar)
-                  if (p.items.length) {
-                    const phStart = Math.min(...p.items.map(t => parseDate(t.inicio).getTime()));
-                    const phEnd = Math.max(...p.items.map(t => parseDate(t.fin).getTime()));
-                    const x = dayToX(new Date(phStart));
-                    const w = dayToX(new Date(phEnd)) - x;
-                    out.push(
-                      <div key={`ph:${p.name}`} className="absolute border-b border-stone-200 bg-stone-50/30" style={{ top: y, left: 0, right: 0, height: PHASE_H }}>
-                        <div
-                          className="absolute top-[10px] flex h-3 items-center rounded-sm"
-                          style={{ left: x, width: Math.max(w, 4), background: "#1F3D2E", opacity: 0.85 }}
-                        >
-                          <span className="absolute -left-1 top-1/2 h-3 w-1 -translate-y-1/2" style={{ borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "0", borderRight: "6px solid #1F3D2E" }} />
-                          <span className="absolute -right-1 top-1/2 h-3 w-1 -translate-y-1/2" style={{ borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "6px solid #1F3D2E", borderRight: "0" }} />
-                        </div>
-                      </div>
-                    );
-                  }
-                  y += PHASE_H;
+            // task row
+            const t = r.task;
+            const p = r.phase;
+            const c = cpm.get(t.id);
+            const isCrit = c?.critical;
+            const startX = dayToX(parseDate(t.inicio));
+            const endX   = dayToX(parseDate(t.fin));
+            const w = Math.max(endX - startX, 2);
+            const baseStartX = dayToX(parseDate(t.baselineInicio));
+            const baseEndX   = dayToX(parseDate(t.baselineFin));
+            const baseW = Math.max(baseEndX - baseStartX, 2);
+            const barColor = isCrit && showCritical ? "#BE123C" : (p.color || "#1F3D2E");
 
-                  if (!collapsedPhases.has(p.name)) {
-                    p.items.forEach(t => {
-                      const c = cpm.get(t.id);
-                      const isCrit = c?.critical;
-                      const startX = dayToX(parseDate(t.inicio));
-                      const endX = dayToX(parseDate(t.fin));
-                      const w = Math.max(endX - startX, 2);
-                      const baseStartX = dayToX(parseDate(t.baselineInicio));
-                      const baseEndX = dayToX(parseDate(t.baselineFin));
-                      const baseW = Math.max(baseEndX - baseStartX, 2);
-                      const barColor = isCrit && showCritical ? "#BE123C" : (p.color || "#1F3D2E");
+            return (
+              <div
+                key={t.id}
+                className={`flex border-b border-stone-100 ${isCrit && showCritical ? "bg-rose-50/30" : ""}`}
+                style={{ height: ROW_H }}
+              >
+                <div
+                  onClick={() => onEdit(t)}
+                  className={`sticky left-0 z-20 flex shrink-0 cursor-pointer items-center gap-2 border-r border-stone-200 px-3 text-[12px] hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/40" : "bg-white"}`}
+                  style={{ width: LEFT_W, height: ROW_H }}
+                >
+                  <span className="w-12 font-mono text-[10px] text-stone-400">{t.wbs}</span>
+                  {t.isMilestone && <Diamond className="h-3 w-3 text-amber-600" />}
+                  <span className="flex-1 truncate text-stone-800">{t.tarea}</span>
+                  <span className="w-10 text-right font-mono text-[10px] text-stone-500">{c?.duracion || 0}d</span>
+                </div>
+                <div className="relative" style={{ width: totalWidth, height: ROW_H }}>
+                  {showBaseline && (
+                    <div
+                      className="absolute h-1.5 rounded-sm border border-stone-400/40"
+                      style={{ top: ROW_H - 8, left: baseStartX, width: baseW, background: "transparent" }}
+                      title={`Línea base: ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
+                    />
+                  )}
+                  {t.isMilestone ? (
+                    <div
+                      onClick={() => onEdit(t)}
+                      className="absolute cursor-pointer"
+                      style={{ top: 8, left: startX - 8, width: 16, height: 16, transform: "rotate(45deg)", background: barColor }}
+                      title={`${t.tarea} · ${fmtDate(t.inicio)}`}
+                    />
+                  ) : (
+                    <div
+                      onClick={() => onEdit(t)}
+                      className="absolute cursor-pointer rounded-md transition-all hover:brightness-110"
+                      style={{
+                        top: 8, left: startX, width: w, height: ROW_H - 14,
+                        background: barColor, opacity: 0.95,
+                        boxShadow: isCrit && showCritical ? "0 0 0 1.5px #BE123C" : "0 1px 2px rgba(0,0,0,0.08)"
+                      }}
+                      title={`${t.tarea} · ${fmtDate(t.inicio)} → ${fmtDate(t.fin)} · ${t.avance}%`}
+                    >
+                      <div
+                        className="h-full rounded-md"
+                        style={{
+                          width: `${t.avance}%`,
+                          background: `linear-gradient(0deg, rgba(0,0,0,0.12), rgba(0,0,0,0.12)), ${barColor}`,
+                          borderRadius: 6
+                        }}
+                      />
+                      {w > 80 && (
+                        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium text-white">
+                          {t.tarea}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
 
-                      out.push(
-                        <div key={t.id} className="absolute border-b border-stone-100" style={{ top: y, left: 0, right: 0, height: ROW_H }}>
-                          {/* Baseline (ghost bar) */}
-                          {showBaseline && (
-                            <div
-                              className="absolute h-1.5 rounded-sm border border-stone-400/40"
-                              style={{ top: ROW_H - 8, left: baseStartX, width: baseW, background: "transparent" }}
-                              title={`Línea base: ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
-                            />
-                          )}
-                          {/* Actual bar */}
-                          {t.isMilestone ? (
-                            <div
-                              className="absolute"
-                              style={{ top: 8, left: startX - 8, width: 16, height: 16, transform: "rotate(45deg)", background: barColor }}
-                              onClick={() => onEdit(t)}
-                              title={`${t.tarea} · ${fmtDate(t.inicio)}`}
-                            />
-                          ) : (
-                            <div
-                              onClick={() => onEdit(t)}
-                              className="absolute cursor-pointer rounded-md transition-all hover:brightness-110"
-                              data-task-id={t.id}
-                              data-task-start-x={startX}
-                              data-task-end-x={endX}
-                              style={{
-                                top: 8,
-                                left: startX,
-                                width: w,
-                                height: ROW_H - 14,
-                                background: barColor,
-                                opacity: 0.95,
-                                boxShadow: isCrit && showCritical ? "0 0 0 1.5px #BE123C" : "0 1px 2px rgba(0,0,0,0.08)"
-                              }}
-                              title={`${t.tarea} · ${fmtDate(t.inicio)} → ${fmtDate(t.fin)} · ${t.avance}%`}
-                            >
-                              {/* progress fill */}
-                              <div
-                                className="h-full rounded-md"
-                                style={{
-                                  width: `${t.avance}%`,
-                                  background: `linear-gradient(0deg, rgba(0,0,0,0.12), rgba(0,0,0,0.12)), ${barColor}`,
-                                  borderRadius: 6
-                                }}
-                              />
-                              {w > 80 && (
-                                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium text-white">
-                                  {t.tarea}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                      y += ROW_H;
-                    });
-                  }
-                });
-                return out;
-              })()}
+          {/* OVERLAY ABSOLUTO — vertical grid + today line + dependency arrows */}
+          <div
+            className="pointer-events-none absolute"
+            style={{ left: LEFT_W, top: HEADER_H, width: totalWidth, height: rowLayout.totalY }}
+          >
+            {/* Vertical grid (líneas de mes) */}
+            {monthMarkers.map((m, i) => (
+              <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m) }} />
+            ))}
 
-              {/* Dependency arrows (SVG overlay) */}
-              {showArrows && (
-                <DependencyArrows
-                  phases={phases}
-                  cpm={cpm}
-                  collapsedPhases={collapsedPhases}
-                  rowOf={rowOf}
-                  totalWidth={totalWidth}
-                  totalHeight={totalHeight}
-                  dayToX={dayToX}
-                  showCritical={showCritical}
+            {/* Today line — dashed vertical line que cruza todas las filas */}
+            {todayX >= 0 && todayX <= totalWidth && (
+              <div className="absolute top-0 h-full" style={{ left: todayX }}>
+                <div
+                  className="h-full"
+                  style={{
+                    width: 0,
+                    borderLeft: "2px dashed #059669",
+                    filter: "drop-shadow(0 0 4px rgba(5,150,105,0.4))"
+                  }}
                 />
-              )}
-            </div>
+                <div className="absolute -top-[34px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
+                  Hoy · {new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+                </div>
+              </div>
+            )}
+
+            {/* Dependency arrows SVG */}
+            {showArrows && (
+              <DependencyArrows
+                phases={phases}
+                cpm={cpm}
+                collapsedPhases={collapsedPhases}
+                rowOf={rowOf}
+                totalWidth={totalWidth}
+                totalHeight={rowLayout.totalY}
+                dayToX={dayToX}
+                showCritical={showCritical}
+              />
+            )}
           </div>
         </div>
       </div>
