@@ -561,7 +561,10 @@ const HomeScreen = ({ projects, onSelect, onNew, onInfo }) => {
         <div>
           <p className="text-[11px] uppercase tracking-[0.15em] text-stone-400">Cretto · Expanding Brands</p>
           <h1 className="mt-1 font-serif text-[34px] leading-[1.1] tracking-tight text-stone-900">
-            Buen lunes, Jose.
+            {(() => {
+              const dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+              return `Buen ${dias[new Date().getDay()]}, Jose.`;
+            })()}
           </h1>
           <p className="mt-2 text-sm text-stone-500">
             {totalActive} proyectos activos · {fmtCOPshort(totalCapex)} en CAPEX bajo gerencia
