@@ -2841,9 +2841,7 @@ function CrettoApp() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900" style={{ fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
-      <Sidebar screen={screen} onNav={onNav} />
-
-      <div className="ml-14">
+      <div>
         <TopBar
           onSearch={() => setPaletteOpen(true)}
           onBack={handleBack}
