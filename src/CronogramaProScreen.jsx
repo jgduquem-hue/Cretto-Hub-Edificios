@@ -181,16 +181,19 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
   // CPM map: id → enriched task
   const cpm = useMemo(() => computeCPM(tareas), [tareas]);
 
-  // Project bounds — siempre incluyen "hoy" para que la línea HOY sea visible
+  // Project bounds — siempre incluyen "hoy" + 60 días de padding atrás para poder
+  // visualizar fechas anteriores al inicio del proyecto sin restricción.
   const { minDate, maxDate, totalDays } = useMemo(() => {
     if (!tareas.length) return { minDate: new Date(), maxDate: new Date(), totalDays: 30 };
     const allDates = tareas.flatMap(t => [parseDate(t.inicio), parseDate(t.fin), parseDate(t.baselineInicio), parseDate(t.baselineFin)]).filter(Boolean);
     allDates.push(new Date()); // garantiza que la fecha actual cae dentro del rango
     const minD = new Date(Math.min(...allDates));
     const maxD = new Date(Math.max(...allDates));
-    // padding: 3 días atrás, 14 días adelante
-    minD.setDate(minD.getDate() - 3);
-    maxD.setDate(maxD.getDate() + 14);
+    // padding generoso: 60 días atrás (~2 meses) y 30 días adelante para contexto
+    minD.setDate(minD.getDate() - 60);
+    maxD.setDate(maxD.getDate() + 30);
+    // snap minDate al inicio del mes para que el header se vea limpio
+    minD.setDate(1);
     return { minDate: minD, maxDate: maxD, totalDays: daysBetween(minD, maxD) };
   }, [tareas]);
 
@@ -491,7 +494,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
         </div>
 
         {/* Right: timeline */}
-        <div className="relative flex-1 overflow-x-auto" ref={containerRef}>
+        <div className="relative flex-1" ref={containerRef} style={{ overflowX: "scroll", overflowY: "clip" }}>
           <div style={{ width: totalWidth, minHeight: totalHeight + 40 }}>
             {/* Month header */}
             <div className="sticky top-[57px] z-30 flex h-10 border-b border-stone-200 bg-stone-100">
