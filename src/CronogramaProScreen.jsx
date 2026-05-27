@@ -447,7 +447,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
   const todayX = dayToX(new Date());
 
   return (
-    <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
       <div className="flex">
         {/* Left: task list */}
         <div className="w-[360px] shrink-0 border-r border-stone-200 bg-stone-50/50">
@@ -752,7 +752,7 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas }) => {
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
       <table className="w-full text-left text-sm">
         <thead className="sticky top-[57px] z-30 bg-emerald-900 text-white">
           <tr>
