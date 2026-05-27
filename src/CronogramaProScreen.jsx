@@ -181,13 +181,14 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
   // CPM map: id → enriched task
   const cpm = useMemo(() => computeCPM(tareas), [tareas]);
 
-  // Project bounds
+  // Project bounds — siempre incluyen "hoy" para que la línea HOY sea visible
   const { minDate, maxDate, totalDays } = useMemo(() => {
     if (!tareas.length) return { minDate: new Date(), maxDate: new Date(), totalDays: 30 };
     const allDates = tareas.flatMap(t => [parseDate(t.inicio), parseDate(t.fin), parseDate(t.baselineInicio), parseDate(t.baselineFin)]).filter(Boolean);
+    allDates.push(new Date()); // garantiza que la fecha actual cae dentro del rango
     const minD = new Date(Math.min(...allDates));
     const maxD = new Date(Math.max(...allDates));
-    // pad by 7 days each side
+    // padding: 3 días atrás, 14 días adelante
     minD.setDate(minD.getDate() - 3);
     maxD.setDate(maxD.getDate() + 14);
     return { minDate: minD, maxDate: maxD, totalDays: daysBetween(minD, maxD) };
@@ -396,6 +397,14 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
   const totalWidth = totalDays * DAY_W;
   const containerRef = useRef(null);
 
+  // Auto-scroll horizontal para centrar el día de hoy al montar
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const todayX = daysBetween(minDate, new Date()) * DAY_W;
+    const half = containerRef.current.clientWidth / 2;
+    containerRef.current.scrollLeft = Math.max(0, todayX - half);
+  }, [minDate]);
+
   // Build row index for each task (for arrow positioning)
   const rowOf = useMemo(() => {
     const m = new Map();
@@ -507,11 +516,13 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
                 <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m) }} />
               ))}
 
-              {/* Today line */}
+              {/* Today line — siempre visible porque el rango incluye new Date() */}
               {todayX >= 0 && todayX <= totalWidth && (
-                <div className="absolute top-0 z-20 h-full" style={{ left: todayX }}>
-                  <div className="h-full w-px bg-emerald-500" />
-                  <div className="absolute -top-1 -translate-x-1/2 rounded bg-emerald-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">HOY</div>
+                <div className="pointer-events-none absolute top-0 z-30 h-full" style={{ left: todayX }}>
+                  <div className="h-full w-[2px] bg-emerald-600 shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
+                    Hoy · {new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+                  </div>
                 </div>
               )}
 
