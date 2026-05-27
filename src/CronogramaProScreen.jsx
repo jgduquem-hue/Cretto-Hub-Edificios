@@ -452,7 +452,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
         {/* Left: task list */}
         <div className="w-[360px] shrink-0 border-r border-stone-200 bg-stone-50/50">
           {/* Header */}
-          <div className="sticky top-[57px] z-10 flex h-10 items-center gap-2 border-b border-stone-200 bg-stone-100 px-3 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
+          <div className="sticky top-[57px] z-30 flex h-10 items-center gap-2 border-b border-stone-200 bg-stone-100 px-3 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
             <div className="w-12">WBS</div>
             <div className="flex-1">Actividad</div>
             <div className="w-12 text-right">Días</div>
@@ -461,7 +461,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
             <React.Fragment key={p.name}>
               <div
                 onClick={() => onTogglePhase(p.name)}
-                className="flex cursor-pointer items-center gap-1 border-b border-stone-200 bg-stone-100/70 px-3 text-[12px] font-semibold text-stone-800 hover:bg-stone-200/50"
+                className="flex cursor-pointer items-center gap-1 border-b border-stone-200 bg-stone-100 px-3 text-[12px] font-semibold text-stone-800 hover:bg-stone-200/70"
                 style={{ height: PHASE_H }}
               >
                 {collapsedPhases.has(p.name) ? <ChevronRight className="h-3 w-3 text-stone-500" /> : <ChevronDown className="h-3 w-3 text-stone-500" />}
@@ -494,7 +494,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
         <div className="relative flex-1 overflow-x-auto" ref={containerRef}>
           <div style={{ width: totalWidth, minHeight: totalHeight + 40 }}>
             {/* Month header */}
-            <div className="sticky top-[57px] z-10 flex h-10 border-b border-stone-200 bg-stone-100">
+            <div className="sticky top-[57px] z-30 flex h-10 border-b border-stone-200 bg-stone-100">
               {monthMarkers.map((m, i) => {
                 const x = dayToX(m);
                 const nextX = i < monthMarkers.length - 1 ? dayToX(monthMarkers[i + 1]) : totalWidth;
@@ -754,7 +754,7 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas }) => {
   return (
     <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
       <table className="w-full text-left text-sm">
-        <thead className="sticky top-[57px] z-10 bg-emerald-900 text-white">
+        <thead className="sticky top-[57px] z-30 bg-emerald-900 text-white">
           <tr>
             <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-20">WBS</th>
             <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider">Actividad</th>
