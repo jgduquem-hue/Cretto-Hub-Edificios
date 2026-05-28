@@ -171,6 +171,7 @@ const StatePill = ({ avance }) => {
 /* ─────────── Main Screen ─────────── */
 const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
   const [view, setView] = useState("gantt");        // "gantt" | "edt" | "calendar"
+  const [zoom, setZoom] = useState("month");         // "day" | "week" | "month" | "quarter" | "semester"
   const [showCritical, setShowCritical] = useState(false);
   const [showBaseline, setShowBaseline] = useState(true);
   const [showArrows, setShowArrows] = useState(true);
@@ -330,6 +331,24 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
               <input type="checkbox" checked={showArrows} onChange={e => setShowArrows(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-700" />
               <span>Flechas</span>
             </label>
+
+            <div className="h-5 w-px bg-stone-200" />
+
+            {/* Zoom switcher */}
+            <div className="inline-flex rounded-md border border-stone-200 bg-stone-50 p-0.5">
+              {Object.values(ZOOM_CONFIG).map(z => (
+                <button
+                  key={z.id}
+                  onClick={() => setZoom(z.id)}
+                  className={`rounded px-2 py-1 text-[11px] font-medium transition-all ${
+                    zoom === z.id ? "bg-white text-emerald-800 shadow-sm" : "text-stone-600 hover:text-stone-900"
+                  }`}
+                  title={`Vista por ${z.label.toLowerCase()}`}
+                >
+                  {z.label}
+                </button>
+              ))}
+            </div>
           </>
         )}
 
@@ -359,6 +378,7 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
           cpm={cpm}
           minDate={minDate}
           totalDays={totalDays}
+          zoom={zoom}
           showCritical={showCritical}
           showBaseline={showBaseline}
           showArrows={showArrows}
@@ -394,20 +414,100 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
 ─────────────────────────────────────────────────────────────── */
 const ROW_H = 32;
 const PHASE_H = 36;
-const DAY_W = 8;
+const DAY_W = 8; // fallback; real value viene del ZOOM_CONFIG
 
-const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline, showArrows, collapsedPhases, onTogglePhase, onEdit }) => {
-  const totalWidth = totalDays * DAY_W;
+/* ─────────── Helpers de unidades de tiempo ─────────── */
+const getISOWeek = (d) => {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+};
+const getQuarter = (d) => Math.floor(d.getMonth() / 3) + 1;
+const getSemester = (d) => Math.floor(d.getMonth() / 6) + 1;
+const startOfWeek = (d) => {
+  const x = new Date(d);
+  const dow = (x.getDay() + 6) % 7; // 0 = lunes
+  x.setDate(x.getDate() - dow);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+const startOfQuarter = (d) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1);
+const startOfSemester = (d) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 6) * 6, 1);
+const startOfYear = (d) => new Date(d.getFullYear(), 0, 1);
+
+/* ─────────── Configuración de zoom ───────────
+   Cada nivel define el ancho por día (DAY_W) y los markers a usar como
+   header primario (fila superior) y secundario (fila inferior).
+*/
+const ZOOM_CONFIG = {
+  day:      { id: "day",      label: "Día",       dayW: 28,  primary: "month",   secondary: "day" },
+  week:     { id: "week",     label: "Semana",    dayW: 12,  primary: "month",   secondary: "week" },
+  month:    { id: "month",    label: "Mes",       dayW: 6,   primary: "year",    secondary: "month" },
+  quarter:  { id: "quarter",  label: "Trimestre", dayW: 2.5, primary: "year",    secondary: "quarter" },
+  semester: { id: "semester", label: "Semestre",  dayW: 1.2, primary: "year",    secondary: "semester" }
+};
+
+const buildMarkers = (unit, minDate, totalDays) => {
+  const out = [];
+  let cur;
+  const end = addDays(minDate, totalDays);
+  if (unit === "day") {
+    cur = new Date(minDate); cur.setHours(0, 0, 0, 0);
+    while (cur <= end) {
+      out.push({ date: new Date(cur), label: cur.getDate() });
+      cur.setDate(cur.getDate() + 1);
+    }
+  } else if (unit === "week") {
+    cur = startOfWeek(minDate);
+    while (cur <= end) {
+      out.push({ date: new Date(cur), label: `S${getISOWeek(cur)}` });
+      cur.setDate(cur.getDate() + 7);
+    }
+  } else if (unit === "month") {
+    cur = startOfMonth(minDate);
+    while (cur <= end) {
+      out.push({ date: new Date(cur), label: cur.toLocaleDateString("es-CO", { month: "short", year: "2-digit" }).toUpperCase() });
+      cur.setMonth(cur.getMonth() + 1);
+    }
+  } else if (unit === "quarter") {
+    cur = startOfQuarter(minDate);
+    while (cur <= end) {
+      out.push({ date: new Date(cur), label: `Q${getQuarter(cur)} '${String(cur.getFullYear()).slice(-2)}` });
+      cur.setMonth(cur.getMonth() + 3);
+    }
+  } else if (unit === "semester") {
+    cur = startOfSemester(minDate);
+    while (cur <= end) {
+      out.push({ date: new Date(cur), label: `${getSemester(cur) === 1 ? "H1" : "H2"} '${String(cur.getFullYear()).slice(-2)}` });
+      cur.setMonth(cur.getMonth() + 6);
+    }
+  } else if (unit === "year") {
+    cur = startOfYear(minDate);
+    while (cur <= end) {
+      out.push({ date: new Date(cur), label: String(cur.getFullYear()) });
+      cur.setFullYear(cur.getFullYear() + 1);
+    }
+  }
+  return out;
+};
+
+const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritical, showBaseline, showArrows, collapsedPhases, onTogglePhase, onEdit }) => {
+  const zoomCfg = ZOOM_CONFIG[zoom] || ZOOM_CONFIG.month;
+  const DAY_PX = zoomCfg.dayW;
+  const totalWidth = totalDays * DAY_PX;
   const containerRef = useRef(null);
 
-  // Auto-scroll horizontal para centrar el día de hoy al montar
+  // Auto-scroll horizontal para centrar el día de hoy al montar/cambiar zoom
   // (suma 360 = ancho de la columna sticky-left de WBS)
   useEffect(() => {
     if (!containerRef.current) return;
-    const todayInScroll = 360 + daysBetween(minDate, new Date()) * DAY_W;
+    const todayInScroll = 360 + daysBetween(minDate, new Date()) * DAY_PX;
     const half = containerRef.current.clientWidth / 2;
     containerRef.current.scrollLeft = Math.max(0, todayInScroll - half);
-  }, [minDate]);
+  }, [minDate, zoom]);
 
   // Build row index for each task (for arrow positioning)
   const rowOf = useMemo(() => {
@@ -433,25 +533,26 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
     return h;
   })();
 
-  const dayToX = (date) => daysBetween(minDate, date) * DAY_W;
+  const dayToX = (date) => daysBetween(minDate, date) * DAY_PX;
 
-  // Month markers
-  const monthMarkers = useMemo(() => {
-    const out = [];
-    const cur = new Date(minDate);
-    cur.setDate(1);
-    while (cur <= addDays(minDate, totalDays)) {
-      out.push(new Date(cur));
-      cur.setMonth(cur.getMonth() + 1);
-    }
-    return out;
-  }, [minDate, totalDays]);
+  // Primary + secondary markers según zoom
+  const primaryMarkers = useMemo(
+    () => buildMarkers(zoomCfg.primary, minDate, totalDays),
+    [minDate, totalDays, zoomCfg.primary]
+  );
+  const secondaryMarkers = useMemo(
+    () => buildMarkers(zoomCfg.secondary, minDate, totalDays),
+    [minDate, totalDays, zoomCfg.secondary]
+  );
+  // Vertical grid usa los secundarios para el zoom mes/trim/sem, y los primarios para día/sem
+  const gridMarkers = zoomCfg.secondary === "day" ? primaryMarkers : secondaryMarkers;
 
   // Today line
   const todayX = dayToX(new Date());
 
   const LEFT_W = 360;
-  const HEADER_H = 40;
+  const ROW_HEADER_H = 22;
+  const HEADER_H = ROW_HEADER_H * 2; // dos filas: primaria + secundaria
   const fullWidth = LEFT_W + totalWidth;
 
   // Pre-computed row layout: list of { kind: 'phase' | 'task', y, phase, task }
@@ -479,7 +580,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
       >
         <div className="relative" style={{ width: fullWidth }}>
 
-          {/* HEADER ROW — sticky-top. Contiene la celda WBS (sticky-left) + el header de meses */}
+          {/* HEADER ROW — sticky-top, 2 filas (primary + secondary) */}
           <div
             className="sticky top-[57px] z-30 flex border-b border-stone-200 bg-stone-100"
             style={{ height: HEADER_H }}
@@ -493,16 +594,32 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
               <div className="w-12 text-right">Días</div>
             </div>
             <div className="relative" style={{ width: totalWidth, height: HEADER_H }}>
-              {monthMarkers.map((m, i) => {
-                const x = dayToX(m);
-                const nextX = i < monthMarkers.length - 1 ? dayToX(monthMarkers[i + 1]) : totalWidth;
+              {/* Fila primaria (año / mes según zoom) */}
+              {primaryMarkers.map((m, i) => {
+                const x = dayToX(m.date);
+                const nextX = i < primaryMarkers.length - 1 ? dayToX(primaryMarkers[i + 1].date) : totalWidth;
                 return (
                   <div
-                    key={i}
-                    className="absolute top-0 flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider text-stone-600"
-                    style={{ left: x, width: nextX - x, height: HEADER_H, borderRight: "1px solid #E7E5E4" }}
+                    key={`p${i}`}
+                    className="absolute top-0 flex items-center justify-center border-r border-stone-300/70 bg-stone-200/50 text-[10px] font-semibold uppercase tracking-wider text-stone-700"
+                    style={{ left: x, width: nextX - x, height: ROW_HEADER_H }}
                   >
-                    {m.toLocaleDateString("es-CO", { month: "short", year: "2-digit" })}
+                    {m.label}
+                  </div>
+                );
+              })}
+              {/* Fila secundaria (mes / semana / día / quarter / semestre según zoom) */}
+              {secondaryMarkers.map((m, i) => {
+                const x = dayToX(m.date);
+                const nextX = i < secondaryMarkers.length - 1 ? dayToX(secondaryMarkers[i + 1].date) : totalWidth;
+                const w = nextX - x;
+                return (
+                  <div
+                    key={`s${i}`}
+                    className="absolute flex items-center justify-center border-r border-stone-200 text-[10px] font-medium tracking-wider text-stone-600"
+                    style={{ left: x, top: ROW_HEADER_H, width: w, height: ROW_HEADER_H }}
+                  >
+                    {w >= 14 ? m.label : ""}
                   </div>
                 );
               })}
@@ -626,9 +743,9 @@ const GanttView = ({ phases, cpm, minDate, totalDays, showCritical, showBaseline
             className="pointer-events-none absolute"
             style={{ left: LEFT_W, top: HEADER_H, width: totalWidth, height: rowLayout.totalY }}
           >
-            {/* Vertical grid (líneas de mes) */}
-            {monthMarkers.map((m, i) => (
-              <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m) }} />
+            {/* Vertical grid (líneas según zoom) */}
+            {gridMarkers.map((m, i) => (
+              <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m.date) }} />
             ))}
 
             {/* Today line — dashed vertical line que cruza todas las filas */}
