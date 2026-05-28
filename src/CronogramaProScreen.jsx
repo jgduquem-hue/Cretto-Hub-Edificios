@@ -894,9 +894,49 @@ const DependencyArrows = ({ phases, cpm, collapsedPhases, rowOf, totalWidth, tot
 };
 
 /* ────────────────────────────────────────────────────────────────
-   EDT VIEW — outline table with WBS hierarchy
+   EDT VIEW — outline table with WBS hierarchy + columnas redimensionables
 ─────────────────────────────────────────────────────────────── */
+const EDT_DEFAULT_WIDTHS = {
+  wbs: 80, tarea: 320, dias: 60, inicio: 110, fin: 110,
+  predecesores: 180, holgura: 80, estado: 110
+};
+const EDT_MIN_W = 40;
+
+const ResizableTh = ({ col, widths, setWidths, align = "left", children }) => {
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = widths[col] ?? EDT_DEFAULT_WIDTHS[col];
+    const move = (ev) => {
+      const newW = Math.max(EDT_MIN_W, startW + (ev.clientX - startX));
+      setWidths(w => ({ ...w, [col]: newW }));
+    };
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+  return (
+    <th className="relative select-none px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ textAlign: align }}>
+      {children}
+      <span
+        onMouseDown={onMouseDown}
+        className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-emerald-300/60"
+        title="Arrastra para ajustar el ancho"
+      />
+    </th>
+  );
+};
+
 const EDTView = ({ phases, cpm, showCritical, onEdit, tareas }) => {
+  const [colWidths, setColWidths] = useState(EDT_DEFAULT_WIDTHS);
   const taskMap = useMemo(() => new Map(tareas.map(t => [t.id, t])), [tareas]);
   const renderDeps = (t) => {
     const deps = normalizeDeps(t);
@@ -914,56 +954,68 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas }) => {
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
-      <table className="w-full text-left text-sm">
-        <thead className="sticky top-[57px] z-30 bg-emerald-900 text-white">
-          <tr>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-20">WBS</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider">Actividad</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-16 text-right">Días</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-28">Inicio</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-28">Fin</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-40">Predecesores</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-20 text-right">Holgura</th>
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider w-24">Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {phases.map(p => (
-            <React.Fragment key={p.name}>
-              <tr className="border-b border-stone-200 bg-stone-100/70">
-                <td className="px-3 py-2 font-mono text-[11px] text-stone-700">{p.wbs}</td>
-                <td className="px-3 py-2 text-[13px] font-semibold text-stone-800">{p.name}</td>
-                <td colSpan={6} className="px-3 py-2 text-[11px] text-stone-500">{p.items.length} actividades</td>
-              </tr>
-              {p.items.map(t => {
-                const c = cpm.get(t.id);
-                const isCrit = c?.critical;
-                return (
-                  <tr
-                    key={t.id}
-                    onClick={() => onEdit(t)}
-                    className={`cursor-pointer border-b border-stone-100 hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/30" : ""}`}
-                  >
-                    <td className="px-3 py-2 pl-8 font-mono text-[11px] text-stone-500">{t.wbs}</td>
-                    <td className="px-3 py-2 text-[13px] text-stone-800">
-                      {t.isMilestone && <Diamond className="mr-1 inline h-3 w-3 text-amber-600" />}
-                      {t.tarea}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-[11px] text-stone-600">{c?.duracion || 0}</td>
-                    <td className="px-3 py-2 font-mono text-[11px] text-stone-600">{fmtDate(t.inicio)}</td>
-                    <td className="px-3 py-2 font-mono text-[11px] text-stone-600">{fmtDate(t.fin)}</td>
-                    <td className="px-3 py-2 text-[11px]">{renderDeps(t)}</td>
-                    <td className={`px-3 py-2 text-right font-mono text-[11px] ${isCrit ? "font-bold text-rose-700" : "text-stone-600"}`}>
-                      {c ? `${c.slack}d` : "—"}
-                    </td>
-                    <td className="px-3 py-2"><StatePill avance={t.avance} /></td>
-                  </tr>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+      <div className="gantt-scroll-x" style={{ overflow: "auto", maxHeight: "calc(100vh - 340px)" }}>
+        <table className="text-left text-sm" style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}>
+          <colgroup>
+            <col style={{ width: colWidths.wbs }} />
+            <col style={{ width: colWidths.tarea }} />
+            <col style={{ width: colWidths.dias }} />
+            <col style={{ width: colWidths.inicio }} />
+            <col style={{ width: colWidths.fin }} />
+            <col style={{ width: colWidths.predecesores }} />
+            <col style={{ width: colWidths.holgura }} />
+            <col style={{ width: colWidths.estado }} />
+          </colgroup>
+          <thead className="sticky top-0 z-30 bg-emerald-900 text-white">
+            <tr>
+              <ResizableTh col="wbs" widths={colWidths} setWidths={setColWidths}>WBS</ResizableTh>
+              <ResizableTh col="tarea" widths={colWidths} setWidths={setColWidths}>Actividad</ResizableTh>
+              <ResizableTh col="dias" widths={colWidths} setWidths={setColWidths} align="right">Días</ResizableTh>
+              <ResizableTh col="inicio" widths={colWidths} setWidths={setColWidths}>Inicio</ResizableTh>
+              <ResizableTh col="fin" widths={colWidths} setWidths={setColWidths}>Fin</ResizableTh>
+              <ResizableTh col="predecesores" widths={colWidths} setWidths={setColWidths}>Predecesores</ResizableTh>
+              <ResizableTh col="holgura" widths={colWidths} setWidths={setColWidths} align="right">Holgura</ResizableTh>
+              <ResizableTh col="estado" widths={colWidths} setWidths={setColWidths}>Estado</ResizableTh>
+            </tr>
+          </thead>
+          <tbody>
+            {phases.map(p => (
+              <React.Fragment key={p.name}>
+                <tr className="border-b border-stone-200 bg-stone-100/70">
+                  <td className="px-3 py-2 font-mono text-[11px] text-stone-700">{p.wbs}</td>
+                  <td className="px-3 py-2 text-[13px] font-semibold text-stone-800 truncate">{p.name}</td>
+                  <td colSpan={6} className="px-3 py-2 text-[11px] text-stone-500">{p.items.length} actividades</td>
+                </tr>
+                {p.items.map(t => {
+                  const c = cpm.get(t.id);
+                  const isCrit = c?.critical;
+                  return (
+                    <tr
+                      key={t.id}
+                      onClick={() => onEdit(t)}
+                      className={`cursor-pointer border-b border-stone-100 hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/30" : ""}`}
+                    >
+                      <td className="px-3 py-2 pl-8 font-mono text-[11px] text-stone-500 truncate">{t.wbs}</td>
+                      <td className="px-3 py-2 text-[13px] text-stone-800 truncate">
+                        {t.isMilestone && <Diamond className="mr-1 inline h-3 w-3 text-amber-600" />}
+                        {t.tarea}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-[11px] text-stone-600">{c?.duracion || 0}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] text-stone-600 truncate">{fmtDate(t.inicio)}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] text-stone-600 truncate">{fmtDate(t.fin)}</td>
+                      <td className="px-3 py-2 text-[11px] truncate">{renderDeps(t)}</td>
+                      <td className={`px-3 py-2 text-right font-mono text-[11px] ${isCrit ? "font-bold text-rose-700" : "text-stone-600"}`}>
+                        {c ? `${c.slack}d` : "—"}
+                      </td>
+                      <td className="px-3 py-2"><StatePill avance={t.avance} /></td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
