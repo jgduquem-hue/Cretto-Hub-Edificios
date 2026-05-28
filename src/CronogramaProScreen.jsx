@@ -503,14 +503,22 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
   const totalWidth = totalDays * DAY_PX;
   const containerRef = useRef(null);
 
-  // Auto-scroll horizontal para centrar el día de hoy al montar/cambiar zoom
-  // (suma 360 = ancho de la columna sticky-left de WBS)
+  // Auto-scroll inicial: muestra la primera actividad del proyecto justo
+  // a la derecha de la columna WBS. Si hoy está antes del proyecto, lo
+  // posiciona ahí. Esto garantiza que SIEMPRE se vean barras al abrir el
+  // Gantt (en lugar de centrarse en HOY si las actividades están en el
+  // pasado/futuro lejano).
   useEffect(() => {
     if (!containerRef.current) return;
-    const todayInScroll = 360 + daysBetween(minDate, new Date()) * DAY_PX;
-    const half = containerRef.current.clientWidth / 2;
-    containerRef.current.scrollLeft = Math.max(0, todayInScroll - half);
-  }, [minDate, zoom]);
+    const startDates = phases.flatMap(p => p.items.map(t => parseDate(t.inicio))).filter(Boolean);
+    if (!startDates.length) return;
+    const projectStart = new Date(Math.min(...startDates));
+    const today = new Date();
+    const target = today < projectStart ? today : projectStart;
+    const targetWrapperX = 360 + daysBetween(minDate, target) * DAY_PX;
+    // Mostrar el target con 40px de aire desde el borde derecho de WBS
+    containerRef.current.scrollLeft = Math.max(0, targetWrapperX - 360 - 40);
+  }, [minDate, zoom, phases]);
 
   // Build row index for each task (for arrow positioning)
   const rowOf = useMemo(() => {
@@ -626,6 +634,17 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                   </div>
                 );
               })}
+
+              {/* HOY badge anclado en el header (sticky por estar en sticky-top) */}
+              {todayX >= 0 && todayX <= totalWidth && (
+                <div
+                  className="absolute z-10 whitespace-nowrap rounded bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-md"
+                  style={{ left: todayX, top: ROW_HEADER_H + 3, transform: "translateX(-50%)" }}
+                  title={`Hoy · ${new Date().toLocaleDateString("es-CO")}`}
+                >
+                  Hoy · {new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -751,21 +770,17 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
               <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m.date) }} />
             ))}
 
-            {/* Today line — dashed vertical line que cruza todas las filas */}
+            {/* Today line — solo la línea punteada vertical (el badge va arriba en el header sticky) */}
             {todayX >= 0 && todayX <= totalWidth && (
-              <div className="absolute top-0 h-full" style={{ left: todayX }}>
-                <div
-                  className="h-full"
-                  style={{
-                    width: 0,
-                    borderLeft: "2px dashed #059669",
-                    filter: "drop-shadow(0 0 4px rgba(5,150,105,0.4))"
-                  }}
-                />
-                <div className="absolute -top-[34px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
-                  Hoy · {new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
-                </div>
-              </div>
+              <div
+                className="absolute top-0 h-full"
+                style={{
+                  left: todayX,
+                  width: 0,
+                  borderLeft: "2px dashed #059669",
+                  filter: "drop-shadow(0 0 3px rgba(5,150,105,0.35))"
+                }}
+              />
             )}
 
             {/* Dependency arrows SVG */}
