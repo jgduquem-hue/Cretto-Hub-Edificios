@@ -182,19 +182,22 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
   // CPM map: id → enriched task
   const cpm = useMemo(() => computeCPM(tareas), [tareas]);
 
-  // Project bounds — siempre incluyen "hoy" + 60 días de padding atrás para poder
-  // visualizar fechas anteriores al inicio del proyecto sin restricción.
+  // Project bounds — siempre incluyen "hoy" + 12 meses de padding atrás (~1 año)
+  // y 3 meses adelante. Esto permite scrollear a fechas del año pasado sin
+  // restricción incluso si todas las actividades son futuras.
   const { minDate, maxDate, totalDays } = useMemo(() => {
     if (!tareas.length) return { minDate: new Date(), maxDate: new Date(), totalDays: 30 };
     const allDates = tareas.flatMap(t => [parseDate(t.inicio), parseDate(t.fin), parseDate(t.baselineInicio), parseDate(t.baselineFin)]).filter(Boolean);
     allDates.push(new Date()); // garantiza que la fecha actual cae dentro del rango
-    const minD = new Date(Math.min(...allDates));
-    const maxD = new Date(Math.max(...allDates));
-    // padding generoso: 60 días atrás (~2 meses) y 30 días adelante para contexto
-    minD.setDate(minD.getDate() - 60);
-    maxD.setDate(maxD.getDate() + 30);
-    // snap minDate al inicio del mes para que el header se vea limpio
+    const earliest = new Date(Math.min(...allDates));
+    const latest   = new Date(Math.max(...allDates));
+    // 12 meses (1 año) atrás de la fecha más temprana, snapped a inicio de mes
+    const minD = new Date(earliest);
+    minD.setMonth(minD.getMonth() - 12);
     minD.setDate(1);
+    // 3 meses adelante de la última fecha
+    const maxD = new Date(latest);
+    maxD.setMonth(maxD.getMonth() + 3);
     return { minDate: minD, maxDate: maxD, totalDays: daysBetween(minD, maxD) };
   }, [tareas]);
 
@@ -638,7 +641,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                 <div key={`ph:${p.name}`} className="flex border-b border-stone-200 bg-stone-50/30" style={{ height: PHASE_H }}>
                   <div
                     onClick={() => onTogglePhase(p.name)}
-                    className="sticky left-0 z-20 flex shrink-0 cursor-pointer items-center gap-1 border-r border-stone-200 bg-stone-100 px-3 text-[12px] font-semibold text-stone-800 hover:bg-stone-200/70"
+                    className="sticky left-0 z-30 flex shrink-0 cursor-pointer items-center gap-1 border-r border-stone-200 bg-stone-100 px-3 text-[12px] font-semibold text-stone-800 hover:bg-stone-200/70"
                     style={{ width: LEFT_W, height: PHASE_H }}
                   >
                     {collapsedPhases.has(p.name)
@@ -684,7 +687,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
               >
                 <div
                   onClick={() => onEdit(t)}
-                  className={`sticky left-0 z-20 flex shrink-0 cursor-pointer items-center gap-2 border-r border-stone-200 px-3 text-[12px] hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/40" : "bg-white"}`}
+                  className={`sticky left-0 z-30 flex shrink-0 cursor-pointer items-center gap-2 border-r border-stone-200 px-3 text-[12px] hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/40" : "bg-white"}`}
                   style={{ width: LEFT_W, height: ROW_H }}
                 >
                   <span className="w-12 font-mono text-[10px] text-stone-400">{t.wbs}</span>
