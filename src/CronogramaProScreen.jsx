@@ -648,6 +648,27 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
             </div>
           </div>
 
+          {/* BACKGROUND OVERLAY — grid + today line (se pinta ANTES que las filas → queda detrás) */}
+          <div
+            className="pointer-events-none absolute"
+            style={{ left: LEFT_W, top: HEADER_H, width: totalWidth, height: rowLayout.totalY }}
+          >
+            {gridMarkers.map((m, i) => (
+              <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m.date) }} />
+            ))}
+            {todayX >= 0 && todayX <= totalWidth && (
+              <div
+                className="absolute top-0 h-full"
+                style={{
+                  left: todayX,
+                  width: 0,
+                  borderLeft: "2px dashed #059669",
+                  filter: "drop-shadow(0 0 3px rgba(5,150,105,0.35))"
+                }}
+              />
+            )}
+          </div>
+
           {/* BODY ROWS */}
           {rowLayout.rows.map((r, idx) => {
             if (r.kind === "phase") {
@@ -672,12 +693,12 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                   </div>
                   <div className="relative" style={{ width: totalWidth, height: PHASE_H }}>
                     {w > 0 && (
-                      <div
-                        className="absolute top-[10px] h-3 rounded-sm"
-                        style={{ left: x, width: Math.max(w, 4), background: "#1F3D2E", opacity: 0.85 }}
-                      >
-                        <span className="absolute -left-1 top-1/2 h-3 w-1 -translate-y-1/2" style={{ borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "0", borderRight: "6px solid #1F3D2E" }} />
-                        <span className="absolute -right-1 top-1/2 h-3 w-1 -translate-y-1/2" style={{ borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "6px solid #1F3D2E", borderRight: "0" }} />
+                      // Phase summary bar estilo MS Project: línea fina arriba +
+                      // triángulos hacia abajo en los extremos
+                      <div className="absolute" style={{ left: x - 1, top: 14, width: Math.max(w, 4) + 2, height: 8 }}>
+                        <div style={{ position: "absolute", left: 1, right: 1, top: 0, height: 3, background: "#1F2937" }} />
+                        <div style={{ position: "absolute", left: 0, top: 3, width: 0, height: 0, borderTop: "5px solid #1F2937", borderRight: "5px solid transparent" }} />
+                        <div style={{ position: "absolute", right: 0, top: 3, width: 0, height: 0, borderTop: "5px solid #1F2937", borderLeft: "5px solid transparent" }} />
                       </div>
                     )}
                   </div>
@@ -760,31 +781,12 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
             );
           })}
 
-          {/* OVERLAY ABSOLUTO — vertical grid + today line + dependency arrows */}
-          <div
-            className="pointer-events-none absolute"
-            style={{ left: LEFT_W, top: HEADER_H, width: totalWidth, height: rowLayout.totalY }}
-          >
-            {/* Vertical grid (líneas según zoom) */}
-            {gridMarkers.map((m, i) => (
-              <div key={i} className="absolute top-0 h-full border-l border-stone-100" style={{ left: dayToX(m.date) }} />
-            ))}
-
-            {/* Today line — solo la línea punteada vertical (el badge va arriba en el header sticky) */}
-            {todayX >= 0 && todayX <= totalWidth && (
-              <div
-                className="absolute top-0 h-full"
-                style={{
-                  left: todayX,
-                  width: 0,
-                  borderLeft: "2px dashed #059669",
-                  filter: "drop-shadow(0 0 3px rgba(5,150,105,0.35))"
-                }}
-              />
-            )}
-
-            {/* Dependency arrows SVG */}
-            {showArrows && (
+          {/* FOREGROUND OVERLAY — dependency arrows (encima de las filas) */}
+          {showArrows && (
+            <div
+              className="pointer-events-none absolute"
+              style={{ left: LEFT_W, top: HEADER_H, width: totalWidth, height: rowLayout.totalY }}
+            >
               <DependencyArrows
                 phases={phases}
                 cpm={cpm}
@@ -795,8 +797,8 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                 dayToX={dayToX}
                 showCritical={showCritical}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
