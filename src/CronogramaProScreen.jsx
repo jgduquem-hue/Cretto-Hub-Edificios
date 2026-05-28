@@ -587,7 +587,8 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
       <div
         ref={containerRef}
-        style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 230px)" }}
+        className="gantt-scroll-x"
+        style={{ overflowX: "scroll", overflowY: "auto", maxHeight: "calc(100vh - 340px)" }}
       >
         <div className="relative" style={{ width: fullWidth }}>
 

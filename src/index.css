@@ -12,3 +12,30 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Scrollbar siempre visible para el Gantt (override del auto-hide de macOS) */
+.gantt-scroll-x::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+  -webkit-appearance: none;
+}
+.gantt-scroll-x::-webkit-scrollbar-track {
+  background: #F5F5F4;
+  border-top: 1px solid #E7E5E4;
+}
+.gantt-scroll-x::-webkit-scrollbar-thumb {
+  background: #A8A29E;
+  border-radius: 6px;
+  border: 2px solid #F5F5F4;
+}
+.gantt-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: #78716C;
+}
+.gantt-scroll-x::-webkit-scrollbar-corner {
+  background: #F5F5F4;
+}
+/* Firefox */
+.gantt-scroll-x {
+  scrollbar-width: auto;
+  scrollbar-color: #A8A29E #F5F5F4;
+}
