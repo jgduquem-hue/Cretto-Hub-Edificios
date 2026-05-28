@@ -17,7 +17,7 @@ import {
 /* ─────────── Date helpers ─────────── */
 const parseDate = (s) => {
   if (!s) return null;
-  if (s instanceof Date) return s;
+  if (s instanceof Date) return new Date(s.getTime()); // clona para evitar mutaciones cruzadas
   const [y, m, d] = String(s).split("-").map(Number);
   return new Date(y, (m || 1) - 1, d || 1);
 };
@@ -587,13 +587,13 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm" style={{ overflow: "clip" }}>
       <div
         ref={containerRef}
-        style={{ overflowX: "scroll", overflowY: "clip" }}
+        style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 230px)" }}
       >
         <div className="relative" style={{ width: fullWidth }}>
 
-          {/* HEADER ROW — sticky-top, 2 filas (primary + secondary) */}
+          {/* HEADER ROW — sticky-top dentro del scroll del Gantt (no de la página) */}
           <div
-            className="sticky top-[57px] z-30 flex border-b border-stone-200 bg-stone-100"
+            className="sticky top-0 z-30 flex border-b border-stone-200 bg-stone-100"
             style={{ height: HEADER_H }}
           >
             <div
