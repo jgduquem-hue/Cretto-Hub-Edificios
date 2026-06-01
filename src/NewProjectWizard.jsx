@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
   X, ChevronRight, ChevronLeft, Check, FileText, Building2, Users,
   Calendar, DollarSign, ClipboardCheck, Circle, Loader2, CheckCircle2,
-  AlertCircle
+  AlertCircle, Plus, Trash2
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────
@@ -66,12 +66,15 @@ const DEFAULT_FORM = {
   pisos: "",
   centroCosto: "",
   // Paso 2
-  sponsor: "",
+  sponsors: [""],              // lista de inversionistas/sponsors (al menos 1)
   sponsorContact: "",
   pmCretto: "Jose Guillermo Duque",
   gerenteComercial: "",
-  arquitecto: "",
+  arquitectos: [""],           // lista de arquitectos/diseñadores
   ingenieroEstructural: "",
+  ingenieroSuelos: "",
+  ingenieroHidraulico: "",
+  ingenieroElectrico: "",
   constructor: "",
   interventor: "",
   residenteObra: "",
@@ -102,7 +105,7 @@ const NewProjectWizard = ({ onClose, onSubmit }) => {
   // Validación por paso
   const stepValid = useMemo(() => {
     if (step === 1) return form.tipoProyecto && form.nombre.trim() && form.cliente.trim() && form.area && form.unidades;
-    if (step === 2) return form.pmCretto.trim() && form.constructor.trim() && form.arquitecto.trim();
+    if (step === 2) return form.pmCretto.trim() && form.constructor.trim() && (form.arquitectos || []).some(a => a.trim());
     if (step === 3) return form.fechaContrato && form.fechaInicioObra && form.fechaEntrega;
     if (step === 4) return form.capexEstimado;
     return true;
@@ -297,12 +300,19 @@ const Step2 = ({ form, update }) => {
   const isResto = form.tipoProyecto === "restaurante";
   return (
     <div className="mx-auto max-w-2xl">
-      <SectionHeader title="Equipo y stakeholders del proyecto" desc="Roles clave que participarán en el proyecto. Esta información alimenta el registro de stakeholders y la matriz RACI." />
+      <SectionHeader title="Equipo y stakeholders del proyecto" desc="Roles clave que participarán en el proyecto. Esta información alimenta el registro de stakeholders y la matriz RACI. Solo nombres por ahora — el detalle (contacto, NIT, etc.) lo completas después en el módulo de Procurement." />
       <div className="space-y-4">
-        <Field label="Sponsor del proyecto (representante del cliente / promotor)">
-          <Input value={form.sponsor} onChange={v => update({ sponsor: v })} placeholder="Nombre completo" />
+
+        {/* Sponsors / inversionistas (lista) */}
+        <Field label="Sponsors / inversionistas del proyecto">
+          <MultiInput
+            values={form.sponsors}
+            onChange={(v) => update({ sponsors: v })}
+            placeholder="Nombre del sponsor / inversionista"
+            addLabel="Agregar inversionista"
+          />
         </Field>
-        <Field label="Contacto del sponsor (teléfono o email)">
+        <Field label="Contacto del sponsor principal (teléfono o email)">
           <Input value={form.sponsorContact} onChange={v => update({ sponsorContact: v })} placeholder="email@ejemplo.com o +57…" />
         </Field>
 
@@ -319,17 +329,33 @@ const Step2 = ({ form, update }) => {
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Arquitecto / diseñador" required>
-            <Input value={form.arquitecto} onChange={v => update({ arquitecto: v })} placeholder="Firma arquitectónica" />
-          </Field>
-          <Field label="Ingeniero estructural">
-            <Input
-              value={form.ingenieroEstructural}
-              onChange={v => update({ ingenieroEstructural: v })}
-              placeholder="Calculista estructural"
-            />
-          </Field>
+        {/* Arquitectos (lista) */}
+        <Field label="Arquitecto(s) / diseñador(es)" required>
+          <MultiInput
+            values={form.arquitectos}
+            onChange={(v) => update({ arquitectos: v })}
+            placeholder="Firma arquitectónica"
+            addLabel="Agregar arquitecto"
+          />
+        </Field>
+
+        {/* Ingenierías */}
+        <div className="rounded-md border border-stone-200 bg-stone-50/40 p-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-stone-600">Ingenierías</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Ingeniero estructural">
+              <Input value={form.ingenieroEstructural} onChange={v => update({ ingenieroEstructural: v })} placeholder="Calculista estructural" />
+            </Field>
+            <Field label="Ingeniero de suelos">
+              <Input value={form.ingenieroSuelos} onChange={v => update({ ingenieroSuelos: v })} placeholder="Estudio geotécnico" />
+            </Field>
+            <Field label="Ingeniero hidráulico">
+              <Input value={form.ingenieroHidraulico} onChange={v => update({ ingenieroHidraulico: v })} placeholder="Diseño hidrosanitario" />
+            </Field>
+            <Field label="Ingeniero eléctrico">
+              <Input value={form.ingenieroElectrico} onChange={v => update({ ingenieroElectrico: v })} placeholder="Diseño eléctrico / RETIE" />
+            </Field>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -350,9 +376,56 @@ const Step2 = ({ form, update }) => {
         </Field>
 
         <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3 text-[12px] text-emerald-900">
-          💡 Estos roles serán automáticamente agregados al <strong>Registro de stakeholders</strong> (documento PMI #02). Podrás editarlos y agregar más contactos desde el módulo de Procurement una vez creado el proyecto.
+          💡 Todos estos roles serán agregados al <strong>Registro de stakeholders</strong> (documento PMI #02). Después podrás editar contactos, NIT, dirección y agregar más actores desde el módulo de Procurement.
         </div>
       </div>
+    </div>
+  );
+};
+
+/* ─────────── MultiInput — lista editable de strings con + y × ─────────── */
+const MultiInput = ({ values, onChange, placeholder, addLabel }) => {
+  const safe = values && values.length ? values : [""];
+  const setAt = (idx, val) => {
+    const next = [...safe];
+    next[idx] = val;
+    onChange(next);
+  };
+  const add = () => onChange([...safe, ""]);
+  const remove = (idx) => {
+    const next = safe.filter((_, i) => i !== idx);
+    onChange(next.length ? next : [""]);
+  };
+  return (
+    <div className="space-y-1.5">
+      {safe.map((v, idx) => (
+        <div key={idx} className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={v}
+            onChange={e => setAt(idx, e.target.value)}
+            placeholder={`${placeholder}${safe.length > 1 ? ` ${idx + 1}` : ""}`}
+            className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm placeholder-stone-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+          {safe.length > 1 && (
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="rounded-md border border-stone-200 bg-white p-1.5 text-stone-400 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+              title="Eliminar"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="inline-flex items-center gap-1 rounded-md border border-stone-300 border-dashed bg-white px-2 py-1 text-[11px] font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-700"
+      >
+        <Plus className="h-3 w-3" /> {addLabel || "Agregar"}
+      </button>
     </div>
   );
 };
@@ -600,9 +673,18 @@ const Step6 = ({ form }) => {
 
       <SummarySection title="Equipo">
         <SummaryRow label="PM Cretto" value={form.pmCretto} />
-        <SummaryRow label="Sponsor" value={`${form.sponsor}${form.sponsorContact ? ` · ${form.sponsorContact}` : ""}`} />
-        <SummaryRow label="Arquitecto" value={form.arquitecto} />
-        {form.ingenieroEstructural && <SummaryRow label="Ingeniero estructural" value={form.ingenieroEstructural} />}
+        <SummaryRow
+          label={`Sponsors (${(form.sponsors || []).filter(s => s.trim()).length})`}
+          value={(form.sponsors || []).filter(s => s.trim()).join(" · ") + (form.sponsorContact ? ` · ${form.sponsorContact}` : "")}
+        />
+        <SummaryRow
+          label={`Arquitecto(s) (${(form.arquitectos || []).filter(a => a.trim()).length})`}
+          value={(form.arquitectos || []).filter(a => a.trim()).join(" · ")}
+        />
+        {form.ingenieroEstructural && <SummaryRow label="Ing. estructural" value={form.ingenieroEstructural} />}
+        {form.ingenieroSuelos && <SummaryRow label="Ing. de suelos" value={form.ingenieroSuelos} />}
+        {form.ingenieroHidraulico && <SummaryRow label="Ing. hidráulico" value={form.ingenieroHidraulico} />}
+        {form.ingenieroElectrico && <SummaryRow label="Ing. eléctrico" value={form.ingenieroElectrico} />}
         <SummaryRow label="Constructor" value={form.constructor} />
         {form.interventor && <SummaryRow label="Interventor" value={form.interventor} />}
         {form.gerenteComercial && <SummaryRow label={form.tipoProyecto === "restaurante" ? "Gerente de marca" : "Gerente comercial"} value={form.gerenteComercial} />}
