@@ -2722,13 +2722,18 @@ function CrettoApp() {
     const total = capex + cont;
     const newProject = {
       id: `user-${Date.now()}`,
+      tipoProyecto: form.tipoProyecto,
       nombre: form.nombre,
       cliente: form.cliente,
       marca: form.marca,
       direccion: form.direccion,
       ciudad: form.ciudad,
       area: parseInt(form.area) || 0,
-      puestos: parseInt(form.puestos) || 0,
+      // 'puestos' se mantiene como nombre del campo para compatibilidad con UI
+      // existente, pero ahora representa "unidades" (apartamentos / locales / puestos)
+      puestos: parseInt(form.unidades) || 0,
+      unidades: parseInt(form.unidades) || 0,
+      pisos: parseInt(form.pisos) || 0,
       centroCosto: form.centroCosto,
       capexTotal: total,
       capexEjecutado: 0,
@@ -2738,11 +2743,16 @@ function CrettoApp() {
       pm: form.pmCretto,
       constructor: form.constructor,
       arquitecto: form.arquitecto,
+      ingenieroEstructural: form.ingenieroEstructural,
+      interventor: form.interventor,
+      gerenteComercial: form.gerenteComercial,
+      residenteObra: form.residenteObra,
       sponsor: form.sponsor,
       fechaContrato: form.fechaContrato,
       fechaInicioObra: form.fechaInicioObra,
-      fechaSoftOpening: form.fechaSoftOpening,
+      fechaEntrega: form.fechaEntrega,
       fechaCierre: form.fechaCierre,
+      financiamiento: form.financiamiento,
       documentosPMI: form.documentos
     };
     setUserProjects(prev => [...prev, newProject]);

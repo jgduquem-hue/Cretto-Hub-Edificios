@@ -41,34 +41,49 @@ const DOCUMENTOS_PMI = [
 
 const ESTADO_DOC = { pendiente: "pendiente", preparacion: "preparacion", listo: "listo" };
 
+/* Tipos de proyecto soportados — cada uno cambia labels/placeholders */
+const TIPOS_PROYECTO = [
+  { id: "edificio_residencial", label: "Edificio residencial", unidadLabel: "Apartamentos", entregaLabel: "Entrega de obra", ejemploArea: "8000", ejemploUnidades: "60" },
+  { id: "edificio_comercial",   label: "Edificio comercial / oficinas", unidadLabel: "Locales / oficinas", entregaLabel: "Entrega de obra", ejemploArea: "5000", ejemploUnidades: "40" },
+  { id: "edificio_mixto",       label: "Edificio mixto (vivienda + comercio)", unidadLabel: "Unidades totales", entregaLabel: "Entrega de obra", ejemploArea: "10000", ejemploUnidades: "80" },
+  { id: "restaurante",          label: "Restaurante / local comercial", unidadLabel: "Puestos", entregaLabel: "Soft opening", ejemploArea: "329", ejemploUnidades: "106" },
+  { id: "remodelacion",         label: "Remodelación / adecuación", unidadLabel: "Unidades intervenidas", entregaLabel: "Entrega de obra", ejemploArea: "500", ejemploUnidades: "1" },
+  { id: "otro",                 label: "Otro tipo de proyecto", unidadLabel: "Unidades", entregaLabel: "Entrega de obra", ejemploArea: "", ejemploUnidades: "" }
+];
+
+const tipoCfg = (id) => TIPOS_PROYECTO.find(t => t.id === id) || TIPOS_PROYECTO[0];
+
 const DEFAULT_FORM = {
   // Paso 1
+  tipoProyecto: "edificio_residencial",
   nombre: "",
   cliente: "",
   marca: "",
   direccion: "",
   ciudad: "Bogotá",
   area: "",
-  puestos: "",
+  unidades: "",
+  pisos: "",
   centroCosto: "",
   // Paso 2
   sponsor: "",
   sponsorContact: "",
   pmCretto: "Jose Guillermo Duque",
-  gerenteMarca: "",
+  gerenteComercial: "",
   arquitecto: "",
+  ingenieroEstructural: "",
   constructor: "",
-  chef: "",
+  interventor: "",
   residenteObra: "",
   // Paso 3
   fechaContrato: "",
   fechaInicioObra: "",
-  fechaSoftOpening: "",
+  fechaEntrega: "",
   fechaCierre: "",
   // Paso 4
   capexEstimado: "",
   contingenciaPct: 15,
-  financiamiento: "DLK directo",
+  financiamiento: "Cliente directo",
   // Paso 5 — documentos: { id → { estado, responsable, fechaCompromiso } }
   documentos: Object.fromEntries(DOCUMENTOS_PMI.map(d => [d.id, { estado: ESTADO_DOC.pendiente, responsable: "", fechaCompromiso: "" }]))
 };
@@ -86,9 +101,9 @@ const NewProjectWizard = ({ onClose, onSubmit }) => {
 
   // Validación por paso
   const stepValid = useMemo(() => {
-    if (step === 1) return form.nombre.trim() && form.cliente.trim() && form.marca.trim() && form.area && form.puestos;
+    if (step === 1) return form.tipoProyecto && form.nombre.trim() && form.cliente.trim() && form.area && form.unidades;
     if (step === 2) return form.pmCretto.trim() && form.constructor.trim() && form.arquitecto.trim();
-    if (step === 3) return form.fechaContrato && form.fechaInicioObra && form.fechaSoftOpening;
+    if (step === 3) return form.fechaContrato && form.fechaInicioObra && form.fechaEntrega;
     if (step === 4) return form.capexEstimado;
     return true;
   }, [step, form]);
@@ -207,99 +222,157 @@ const NewProjectWizard = ({ onClose, onSubmit }) => {
 };
 
 /* ─────────── Step 1: Información general ─────────── */
-const Step1 = ({ form, update }) => (
-  <div className="mx-auto max-w-2xl">
-    <SectionHeader title="Información general del proyecto" desc="Datos básicos del local y su ubicación." />
-    <div className="space-y-4">
-      <Field label="Nombre del proyecto" required>
-        <Input value={form.nombre} onChange={v => update({ nombre: v })} placeholder="Ej. Cosette 81" />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Cliente / razón social" required>
-          <Input value={form.cliente} onChange={v => update({ cliente: v })} placeholder="Ej. DLK" />
-        </Field>
-        <Field label="Marca" required>
-          <Select value={form.marca} onChange={v => update({ marca: v })}>
-            <option value="">Seleccionar marca…</option>
-            <option value="Cosette">Cosette</option>
-            <option value="Primi">Primi</option>
-            <option value="La Brasserie">La Brasserie</option>
-            <option value="Tomate">Tomate</option>
-            <option value="Otra">Otra (nueva marca)</option>
+const Step1 = ({ form, update }) => {
+  const t = tipoCfg(form.tipoProyecto);
+  return (
+    <div className="mx-auto max-w-2xl">
+      <SectionHeader title="Información general del proyecto" desc="Datos básicos del proyecto y su ubicación. Selecciona primero el tipo de proyecto — algunas preguntas se ajustarán según el tipo." />
+      <div className="space-y-4">
+        <Field label="Tipo de proyecto" required>
+          <Select value={form.tipoProyecto} onChange={v => update({ tipoProyecto: v })}>
+            {TIPOS_PROYECTO.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
           </Select>
         </Field>
+
+        <Field label="Nombre del proyecto" required>
+          <Input
+            value={form.nombre}
+            onChange={v => update({ nombre: v })}
+            placeholder={
+              form.tipoProyecto === "edificio_residencial" ? "Ej. Torre Versalles" :
+              form.tipoProyecto === "restaurante" ? "Ej. Cosette 81" :
+              "Ej. nombre del proyecto"
+            }
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Cliente / promotor" required>
+            <Input value={form.cliente} onChange={v => update({ cliente: v })} placeholder={form.tipoProyecto === "restaurante" ? "Ej. DLK" : "Razón social del promotor"} />
+          </Field>
+          <Field label={form.tipoProyecto === "restaurante" ? "Marca" : "Marca / desarrollo"}>
+            <Input
+              value={form.marca}
+              onChange={v => update({ marca: v })}
+              placeholder={
+                form.tipoProyecto === "restaurante" ? "Ej. Cosette" :
+                form.tipoProyecto === "edificio_residencial" ? "Nombre del desarrollo (opcional)" :
+                "Identificador opcional"
+              }
+            />
+          </Field>
+        </div>
+
+        <Field label="Dirección">
+          <Input value={form.direccion} onChange={v => update({ direccion: v })} placeholder="Ej. Calle 81 # 8 - 85" />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Ciudad">
+            <Input value={form.ciudad} onChange={v => update({ ciudad: v })} />
+          </Field>
+          <Field label="Centro de costo">
+            <Input value={form.centroCosto} onChange={v => update({ centroCosto: v })} placeholder="Opcional" />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Área construida (m²)" required>
+            <Input type="number" value={form.area} onChange={v => update({ area: v })} placeholder={t.ejemploArea} />
+          </Field>
+          <Field label={t.unidadLabel} required>
+            <Input type="number" value={form.unidades} onChange={v => update({ unidades: v })} placeholder={t.ejemploUnidades} />
+          </Field>
+          <Field label="Pisos / niveles">
+            <Input type="number" value={form.pisos} onChange={v => update({ pisos: v })} placeholder="Ej. 12" />
+          </Field>
+        </div>
       </div>
-      <Field label="Dirección">
-        <Input value={form.direccion} onChange={v => update({ direccion: v })} placeholder="Ej. Calle 81 # 8 - 85" />
-      </Field>
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="Ciudad">
-          <Input value={form.ciudad} onChange={v => update({ ciudad: v })} />
-        </Field>
-        <Field label="Área (m²)" required>
-          <Input type="number" value={form.area} onChange={v => update({ area: v })} placeholder="329" />
-        </Field>
-        <Field label="Puestos" required>
-          <Input type="number" value={form.puestos} onChange={v => update({ puestos: v })} placeholder="106" />
-        </Field>
-      </div>
-      <Field label="Centro de costo">
-        <Input value={form.centroCosto} onChange={v => update({ centroCosto: v })} placeholder="Ej. AN 05" />
-      </Field>
     </div>
-  </div>
-);
+  );
+};
 
 /* ─────────── Step 2: Equipo y stakeholders ─────────── */
-const Step2 = ({ form, update }) => (
-  <div className="mx-auto max-w-2xl">
-    <SectionHeader title="Equipo y stakeholders del proyecto" desc="Roles clave que participarán en el proyecto. Esta información alimenta el registro de stakeholders y la matriz RACI." />
-    <div className="space-y-4">
-      <Field label="Sponsor del proyecto (representante del cliente)">
-        <Input value={form.sponsor} onChange={v => update({ sponsor: v })} placeholder="Nombre completo" />
-      </Field>
-      <Field label="Contacto del sponsor (teléfono o email)">
-        <Input value={form.sponsorContact} onChange={v => update({ sponsorContact: v })} placeholder="email@ejemplo.com o +57…" />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="PM Cretto" required>
-          <Input value={form.pmCretto} onChange={v => update({ pmCretto: v })} />
+const Step2 = ({ form, update }) => {
+  const isResto = form.tipoProyecto === "restaurante";
+  return (
+    <div className="mx-auto max-w-2xl">
+      <SectionHeader title="Equipo y stakeholders del proyecto" desc="Roles clave que participarán en el proyecto. Esta información alimenta el registro de stakeholders y la matriz RACI." />
+      <div className="space-y-4">
+        <Field label="Sponsor del proyecto (representante del cliente / promotor)">
+          <Input value={form.sponsor} onChange={v => update({ sponsor: v })} placeholder="Nombre completo" />
         </Field>
-        <Field label="Gerente de marca">
-          <Input value={form.gerenteMarca} onChange={v => update({ gerenteMarca: v })} placeholder="Representante operativo de la marca" />
+        <Field label="Contacto del sponsor (teléfono o email)">
+          <Input value={form.sponsorContact} onChange={v => update({ sponsorContact: v })} placeholder="email@ejemplo.com o +57…" />
         </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Arquitecto / diseñador" required>
-          <Input value={form.arquitecto} onChange={v => update({ arquitecto: v })} placeholder="Ej. Studio Manrique" />
-        </Field>
-        <Field label="Constructor / contratista principal" required>
-          <Input value={form.constructor} onChange={v => update({ constructor: v })} placeholder="Ej. Duque Arquitectura" />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Chef corporativa">
-          <Input value={form.chef} onChange={v => update({ chef: v })} />
-        </Field>
-        <Field label="Residente de obra">
-          <Input value={form.residenteObra} onChange={v => update({ residenteObra: v })} />
-        </Field>
-      </div>
 
-      <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3 text-[12px] text-emerald-900">
-        💡 Estos roles serán automáticamente agregados al <strong>Registro de stakeholders</strong> (documento PMI #02). Podrás editarlos y agregar más contactos desde el módulo de Procurement una vez creado el proyecto.
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="PM Cretto" required>
+            <Input value={form.pmCretto} onChange={v => update({ pmCretto: v })} />
+          </Field>
+          <Field label={isResto ? "Gerente de marca" : "Gerente comercial / ventas"}>
+            <Input
+              value={form.gerenteComercial}
+              onChange={v => update({ gerenteComercial: v })}
+              placeholder={isResto ? "Representante operativo de la marca" : "Responsable comercial del desarrollo"}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Arquitecto / diseñador" required>
+            <Input value={form.arquitecto} onChange={v => update({ arquitecto: v })} placeholder="Firma arquitectónica" />
+          </Field>
+          <Field label="Ingeniero estructural">
+            <Input
+              value={form.ingenieroEstructural}
+              onChange={v => update({ ingenieroEstructural: v })}
+              placeholder="Calculista estructural"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Constructor / contratista principal" required>
+            <Input value={form.constructor} onChange={v => update({ constructor: v })} placeholder="Empresa constructora" />
+          </Field>
+          <Field label="Interventor">
+            <Input
+              value={form.interventor}
+              onChange={v => update({ interventor: v })}
+              placeholder={isResto ? "Opcional" : "Interventoría técnica / administrativa"}
+            />
+          </Field>
+        </div>
+
+        <Field label="Residente de obra">
+          <Input value={form.residenteObra} onChange={v => update({ residenteObra: v })} placeholder="Persona en sitio durante la ejecución" />
+        </Field>
+
+        <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3 text-[12px] text-emerald-900">
+          💡 Estos roles serán automáticamente agregados al <strong>Registro de stakeholders</strong> (documento PMI #02). Podrás editarlos y agregar más contactos desde el módulo de Procurement una vez creado el proyecto.
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ─────────── Step 3: Fechas clave ─────────── */
 const Step3 = ({ form, update }) => {
-  const diffDays = (a, b) => {
-    if (!a || !b) return null;
-    return Math.round((new Date(b) - new Date(a)) / 86400000);
+  const t = tipoCfg(form.tipoProyecto);
+  const isResto = form.tipoProyecto === "restaurante";
+  // benchmarks por tipo (días entre inicio de obra y entrega)
+  const benchmarks = {
+    edificio_residencial: { min: 365, max: 730, note: "Edificios residenciales típicamente requieren 12-24 meses según altura y unidades." },
+    edificio_comercial:   { min: 365, max: 730, note: "Edificios comerciales: 12-24 meses según tamaño." },
+    edificio_mixto:       { min: 540, max: 900, note: "Mixtos suelen tomar 18-30 meses por la coordinación de varios usos." },
+    restaurante:          { min: 120, max: 180, note: "Restaurantes Cretto típicamente requieren 120-180 días." },
+    remodelacion:         { min: 60,  max: 180, note: "Remodelaciones medianas: 2-6 meses." },
+    otro:                 { min: 90,  max: 365, note: "Validar cronograma con el constructor." }
   };
-  const days = diffDays(form.fechaInicioObra, form.fechaSoftOpening);
+  const bench = benchmarks[form.tipoProyecto] || benchmarks.otro;
+  const diffDays = (a, b) => (!a || !b) ? null : Math.round((new Date(b) - new Date(a)) / 86400000);
+  const days = diffDays(form.fechaInicioObra, form.fechaEntrega);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -311,8 +384,8 @@ const Step3 = ({ form, update }) => {
         <Field label="Fecha de inicio de obra" required>
           <Input type="date" value={form.fechaInicioObra} onChange={v => update({ fechaInicioObra: v })} />
         </Field>
-        <Field label="Soft opening planeado" required>
-          <Input type="date" value={form.fechaSoftOpening} onChange={v => update({ fechaSoftOpening: v })} />
+        <Field label={`${t.entregaLabel} planeada`} required>
+          <Input type="date" value={form.fechaEntrega} onChange={v => update({ fechaEntrega: v })} />
         </Field>
         <Field label="Cierre formal estimado (opcional)">
           <Input type="date" value={form.fechaCierre} onChange={v => update({ fechaCierre: v })} />
@@ -320,20 +393,20 @@ const Step3 = ({ form, update }) => {
 
         {days != null && days > 0 && (
           <div className={`rounded-md border p-3 text-[12px] ${
-            days < 90 ? "border-rose-200 bg-rose-50/60 text-rose-900" :
-            days < 150 ? "border-amber-200 bg-amber-50/60 text-amber-900" :
+            days < bench.min ? "border-rose-200 bg-rose-50/60 text-rose-900" :
+            days < bench.max ? "border-amber-200 bg-amber-50/60 text-amber-900" :
             "border-emerald-200 bg-emerald-50/60 text-emerald-900"
           }`}>
-            {days < 90 ? <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> : "✓ "}
-            <strong>{days} días</strong> entre inicio de obra y soft opening.{" "}
-            {days < 90 && "⚠ Probable cronograma muy ajustado. Restaurantes Cretto típicamente requieren 120-180 días."}
-            {days >= 90 && days < 150 && "Cronograma ajustado. Validar viabilidad con el constructor."}
-            {days >= 150 && "Cronograma razonable según benchmarks Cretto."}
+            {days < bench.min ? <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> : "✓ "}
+            <strong>{days} días</strong> (~{Math.round(days / 30)} meses) entre inicio de obra y {t.entregaLabel.toLowerCase()}.{" "}
+            {days < bench.min && `⚠ Probable cronograma muy ajustado. ${bench.note}`}
+            {days >= bench.min && days < bench.max && `Cronograma ajustado. Validar viabilidad con el constructor (rango típico ${bench.min}-${bench.max} días).`}
+            {days >= bench.max && `Cronograma razonable. ${bench.note}`}
           </div>
         )}
         {days != null && days <= 0 && (
           <div className="rounded-md border border-rose-200 bg-rose-50/60 p-3 text-[12px] text-rose-900">
-            <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> El soft opening debe ser posterior al inicio de obra.
+            <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> La {t.entregaLabel.toLowerCase()} debe ser posterior al inicio de obra.
           </div>
         )}
       </div>
@@ -357,10 +430,18 @@ const Step4 = ({ form, update }) => {
             type="number"
             value={form.capexEstimado}
             onChange={v => update({ capexEstimado: v })}
-            placeholder="Ej. 3000000000"
+            placeholder={
+              form.tipoProyecto === "edificio_residencial" ? "Ej. 30000000000 (edificios típicos)" :
+              form.tipoProyecto === "restaurante" ? "Ej. 3000000000" :
+              "Ej. 5000000000"
+            }
           />
           <span className="mt-1 block text-[10px] text-stone-500">
-            Referencia Cosette 81: ~$3.030 MM · Cosette 109: ~$3.637 MM
+            {form.tipoProyecto === "restaurante"
+              ? "Referencia Cosette 81: ~$3.030 MM · Cosette 109: ~$3.637 MM"
+              : form.tipoProyecto === "edificio_residencial"
+              ? "Referencia: edificios residenciales medianos suelen estar entre $20.000 MM y $80.000 MM según altura y unidades"
+              : "Estimación bruta — el detalle por categoría se define después en el módulo CAPEX"}
           </span>
         </Field>
 
@@ -375,15 +456,17 @@ const Step4 = ({ form, update }) => {
             className="w-full accent-emerald-700"
           />
           <div className="mt-1 flex justify-between text-[10px] text-stone-500">
-            <span>5% (mínimo)</span><span>15% (recomendado Cretto)</span><span>25% (proyectos complejos)</span>
+            <span>5% (mínimo)</span><span>10-15% (recomendado)</span><span>25% (proyectos complejos)</span>
           </div>
         </Field>
 
-        <Field label="Modelo de financiamiento">
+        <Field label="Modelo de financiamiento / contratación">
           <Select value={form.financiamiento} onChange={v => update({ financiamiento: v })}>
-            <option value="DLK directo">DLK directo (compras vía cliente)</option>
-            <option value="Constructor administración delegada">Constructor por administración delegada</option>
-            <option value="Mixto">Mixto (parte directo cliente, parte vía constructor)</option>
+            <option value="Cliente directo">Cliente directo (compras y pagos gestionados por el cliente)</option>
+            <option value="Administración delegada">Administración delegada (constructor gestiona compras, cobra honorarios)</option>
+            <option value="Precio fijo (lump sum)">Precio fijo / lump sum (contratista asume riesgo del costo)</option>
+            <option value="Llave en mano">Llave en mano (constructor entrega proyecto terminado)</option>
+            <option value="Mixto">Mixto (combinación según rubro)</option>
           </Select>
         </Field>
 
@@ -504,29 +587,32 @@ const Step6 = ({ form }) => {
       <SectionHeader title="Resumen del proyecto" desc="Revisa la información antes de crear el proyecto. Una vez creado, podrás editar cualquier dato desde los módulos del hub." />
 
       <SummarySection title="Información general">
+        <SummaryRow label="Tipo de proyecto" value={tipoCfg(form.tipoProyecto).label} />
         <SummaryRow label="Nombre" value={form.nombre} />
-        <SummaryRow label="Cliente" value={form.cliente} />
-        <SummaryRow label="Marca" value={form.marca} />
+        <SummaryRow label="Cliente / promotor" value={form.cliente} />
+        {form.marca && <SummaryRow label={form.tipoProyecto === "restaurante" ? "Marca" : "Marca / desarrollo"} value={form.marca} />}
         <SummaryRow label="Dirección" value={`${form.direccion}${form.ciudad ? ", " + form.ciudad : ""}`} />
-        <SummaryRow label="Área" value={form.area ? `${form.area} m²` : "—"} />
-        <SummaryRow label="Puestos" value={form.puestos} />
-        <SummaryRow label="Centro de costo" value={form.centroCosto} />
+        <SummaryRow label="Área construida" value={form.area ? `${form.area} m²` : "—"} />
+        <SummaryRow label={tipoCfg(form.tipoProyecto).unidadLabel} value={form.unidades} />
+        {form.pisos && <SummaryRow label="Pisos / niveles" value={form.pisos} />}
+        {form.centroCosto && <SummaryRow label="Centro de costo" value={form.centroCosto} />}
       </SummarySection>
 
       <SummarySection title="Equipo">
         <SummaryRow label="PM Cretto" value={form.pmCretto} />
         <SummaryRow label="Sponsor" value={`${form.sponsor}${form.sponsorContact ? ` · ${form.sponsorContact}` : ""}`} />
         <SummaryRow label="Arquitecto" value={form.arquitecto} />
+        {form.ingenieroEstructural && <SummaryRow label="Ingeniero estructural" value={form.ingenieroEstructural} />}
         <SummaryRow label="Constructor" value={form.constructor} />
-        <SummaryRow label="Gerente de marca" value={form.gerenteMarca} />
-        {form.chef && <SummaryRow label="Chef corporativa" value={form.chef} />}
+        {form.interventor && <SummaryRow label="Interventor" value={form.interventor} />}
+        {form.gerenteComercial && <SummaryRow label={form.tipoProyecto === "restaurante" ? "Gerente de marca" : "Gerente comercial"} value={form.gerenteComercial} />}
         {form.residenteObra && <SummaryRow label="Residente de obra" value={form.residenteObra} />}
       </SummarySection>
 
       <SummarySection title="Fechas clave">
         <SummaryRow label="Firma de contrato" value={fmtDate(form.fechaContrato)} />
         <SummaryRow label="Inicio de obra" value={fmtDate(form.fechaInicioObra)} />
-        <SummaryRow label="Soft opening" value={fmtDate(form.fechaSoftOpening)} />
+        <SummaryRow label={tipoCfg(form.tipoProyecto).entregaLabel} value={fmtDate(form.fechaEntrega)} />
         {form.fechaCierre && <SummaryRow label="Cierre estimado" value={fmtDate(form.fechaCierre)} />}
       </SummarySection>
 
