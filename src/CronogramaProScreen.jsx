@@ -173,7 +173,7 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
   const [view, setView] = useState("gantt");        // "gantt" | "edt" | "calendar"
   const [zoom, setZoom] = useState("month");         // "day" | "week" | "month" | "quarter" | "semester"
   const [showCritical, setShowCritical] = useState(false);
-  const [showBaseline, setShowBaseline] = useState(true);
+  const [viewMode, setViewMode] = useState("real");  // "plan" | "real" | "comparativo"
   const [showArrows, setShowArrows] = useState(true);
   const [collapsedPhases, setCollapsedPhases] = useState(new Set());
   const [editing, setEditing] = useState(null);     // task object or "new"
@@ -326,10 +326,26 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
 
         {view === "gantt" && (
           <>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-stone-700">
-              <input type="checkbox" checked={showBaseline} onChange={e => setShowBaseline(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-700" />
-              <span>Línea base</span>
-            </label>
+            {/* Modo de visualización: Plan / Real / Comparativo */}
+            <div className="inline-flex rounded-md border border-stone-200 bg-stone-50 p-0.5">
+              {[
+                { id: "plan", label: "Plan", title: "Solo línea base (planificación original)" },
+                { id: "real", label: "Real", title: "Solo ejecución actual" },
+                { id: "comparativo", label: "Comparativo", title: "Plan vs Real en paralelo" }
+              ].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setViewMode(m.id)}
+                  title={m.title}
+                  className={`rounded px-2 py-1 text-[11px] font-medium transition-all ${
+                    viewMode === m.id ? "bg-white text-emerald-800 shadow-sm" : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
             <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-stone-700">
               <input type="checkbox" checked={showArrows} onChange={e => setShowArrows(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-700" />
               <span>Flechas</span>
@@ -383,7 +399,7 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
           totalDays={totalDays}
           zoom={zoom}
           showCritical={showCritical}
-          showBaseline={showBaseline}
+          viewMode={viewMode}
           showArrows={showArrows}
           collapsedPhases={collapsedPhases}
           onTogglePhase={togglePhase}
@@ -391,7 +407,16 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
         />
       )}
       {view === "edt" && (
-        <EDTView phases={visiblePhases} cpm={cpm} showCritical={showCritical} onEdit={setEditing} tareas={tareas} />
+        <EDTView
+          phases={visiblePhases}
+          cpm={cpm}
+          showCritical={showCritical}
+          onEdit={setEditing}
+          tareas={tareas}
+          collapsedPhases={collapsedPhases}
+          onTogglePhase={togglePhase}
+          onTareasChange={onTareasChange}
+        />
       )}
       {view === "calendar" && (
         <CalendarView tareas={tareas} cpm={cpm} showCritical={showCritical} onEdit={setEditing} />
@@ -497,7 +522,10 @@ const buildMarkers = (unit, minDate, totalDays) => {
   return out;
 };
 
-const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritical, showBaseline, showArrows, collapsedPhases, onTogglePhase, onEdit }) => {
+const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritical, viewMode = "real", showArrows, collapsedPhases, onTogglePhase, onEdit }) => {
+  // viewMode: "plan" → solo barra baseline | "real" → solo barra ejecutada | "comparativo" → ambas
+  const showPlan = viewMode === "plan" || viewMode === "comparativo";
+  const showReal = viewMode === "real" || viewMode === "comparativo";
   const zoomCfg = ZOOM_CONFIG[zoom] || ZOOM_CONFIG.month;
   const DAY_PX = zoomCfg.dayW;
   const totalWidth = totalDays * DAY_PX;
@@ -737,45 +765,73 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                   <span className="w-10 text-right font-mono text-[10px] text-stone-500">{c?.duracion || 0}d</span>
                 </div>
                 <div className="relative" style={{ width: totalWidth, height: ROW_H }}>
-                  {showBaseline && (
-                    <div
-                      className="absolute h-1.5 rounded-sm border border-stone-400/40"
-                      style={{ top: ROW_H - 8, left: baseStartX, width: baseW, background: "transparent" }}
-                      title={`Línea base: ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
-                    />
-                  )}
-                  {t.isMilestone ? (
-                    <div
-                      onClick={() => onEdit(t)}
-                      className="absolute cursor-pointer"
-                      style={{ top: 8, left: startX - 8, width: 16, height: 16, transform: "rotate(45deg)", background: barColor }}
-                      title={`${t.tarea} · ${fmtDate(t.inicio)}`}
-                    />
-                  ) : (
-                    <div
-                      onClick={() => onEdit(t)}
-                      className="absolute cursor-pointer rounded-md transition-all hover:brightness-110"
-                      style={{
-                        top: 8, left: startX, width: w, height: ROW_H - 14,
-                        background: barColor, opacity: 0.95,
-                        boxShadow: isCrit && showCritical ? "0 0 0 1.5px #BE123C" : "0 1px 2px rgba(0,0,0,0.08)"
-                      }}
-                      title={`${t.tarea} · ${fmtDate(t.inicio)} → ${fmtDate(t.fin)} · ${t.avance}%`}
-                    >
+                  {/* PLAN bar (línea base) — visible en modo "plan" o "comparativo" */}
+                  {showPlan && (
+                    viewMode === "plan" ? (
+                      // En modo solo Plan: barra sólida con el color de la fase
                       <div
-                        className="h-full rounded-md"
+                        onClick={() => onEdit(t)}
+                        className="absolute cursor-pointer rounded-md transition-all hover:brightness-110"
                         style={{
-                          width: `${t.avance}%`,
-                          background: `linear-gradient(0deg, rgba(0,0,0,0.12), rgba(0,0,0,0.12)), ${barColor}`,
-                          borderRadius: 6
+                          top: 8, left: baseStartX, width: baseW, height: ROW_H - 14,
+                          background: barColor, opacity: 0.95,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)"
                         }}
+                        title={`Plan: ${t.tarea} · ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
+                      >
+                        {baseW > 80 && (
+                          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium text-white">
+                            {t.tarea}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      // En modo Comparativo: ghost bar (línea fina) arriba
+                      <div
+                        className="absolute h-1.5 rounded-sm border border-stone-500/60"
+                        style={{ top: 5, left: baseStartX, width: baseW, background: "rgba(120,113,108,0.15)" }}
+                        title={`Plan: ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
                       />
-                      {w > 80 && (
-                        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium text-white">
-                          {t.tarea}
-                        </span>
-                      )}
-                    </div>
+                    )
+                  )}
+                  {/* REAL bar (barra de ejecución actual) — visible en modo "real" o "comparativo" */}
+                  {showReal && (
+                    t.isMilestone ? (
+                      <div
+                        onClick={() => onEdit(t)}
+                        className="absolute cursor-pointer"
+                        style={{ top: 8, left: startX - 8, width: 16, height: 16, transform: "rotate(45deg)", background: barColor }}
+                        title={`${t.tarea} · ${fmtDate(t.inicio)}`}
+                      />
+                    ) : (
+                      <div
+                        onClick={() => onEdit(t)}
+                        className="absolute cursor-pointer rounded-md transition-all hover:brightness-110"
+                        style={{
+                          top: viewMode === "comparativo" ? 13 : 8,
+                          left: startX,
+                          width: w,
+                          height: viewMode === "comparativo" ? ROW_H - 18 : ROW_H - 14,
+                          background: barColor, opacity: 0.95,
+                          boxShadow: isCrit && showCritical ? "0 0 0 1.5px #BE123C" : "0 1px 2px rgba(0,0,0,0.08)"
+                        }}
+                        title={`Real: ${t.tarea} · ${fmtDate(t.inicio)} → ${fmtDate(t.fin)} · ${t.avance}%`}
+                      >
+                        <div
+                          className="h-full rounded-md"
+                          style={{
+                            width: `${t.avance}%`,
+                            background: `linear-gradient(0deg, rgba(0,0,0,0.12), rgba(0,0,0,0.12)), ${barColor}`,
+                            borderRadius: 6
+                          }}
+                        />
+                        {w > 80 && viewMode !== "comparativo" && (
+                          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium text-white">
+                            {t.tarea}
+                          </span>
+                        )}
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -935,8 +991,20 @@ const ResizableTh = ({ col, widths, setWidths, align = "left", children }) => {
   );
 };
 
-const EDTView = ({ phases, cpm, showCritical, onEdit, tareas }) => {
+const EDTView = ({ phases, cpm, showCritical, onEdit, tareas, collapsedPhases, onTogglePhase, onTareasChange }) => {
   const [colWidths, setColWidths] = useState(EDT_DEFAULT_WIDTHS);
+  const [editingDuration, setEditingDuration] = useState(null); // { id, value }
+
+  const onDuracionCommit = (taskId, newDuracion) => {
+    const d = parseInt(newDuracion);
+    if (!d || d < 1 || !onTareasChange) { setEditingDuration(null); return; }
+    onTareasChange(tareas.map(t => {
+      if (t.id !== taskId) return t;
+      const newFin = toISODate(addDays(parseDate(t.inicio), d));
+      return { ...t, fin: newFin };
+    }));
+    setEditingDuration(null);
+  };
   const taskMap = useMemo(() => new Map(tareas.map(t => [t.id, t])), [tareas]);
   const renderDeps = (t) => {
     const deps = normalizeDeps(t);
@@ -979,40 +1047,79 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas }) => {
             </tr>
           </thead>
           <tbody>
-            {phases.map(p => (
-              <React.Fragment key={p.name}>
-                <tr className="border-b border-stone-200 bg-stone-100/70">
-                  <td className="px-3 py-2 font-mono text-[11px] text-stone-700">{p.wbs}</td>
-                  <td className="px-3 py-2 text-[13px] font-semibold text-stone-800 truncate">{p.name}</td>
-                  <td colSpan={6} className="px-3 py-2 text-[11px] text-stone-500">{p.items.length} actividades</td>
-                </tr>
-                {p.items.map(t => {
-                  const c = cpm.get(t.id);
-                  const isCrit = c?.critical;
-                  return (
-                    <tr
-                      key={t.id}
-                      onClick={() => onEdit(t)}
-                      className={`cursor-pointer border-b border-stone-100 hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/30" : ""}`}
-                    >
-                      <td className="px-3 py-2 pl-8 font-mono text-[11px] text-stone-500 truncate">{t.wbs}</td>
-                      <td className="px-3 py-2 text-[13px] text-stone-800 truncate">
-                        {t.isMilestone && <Diamond className="mr-1 inline h-3 w-3 text-amber-600" />}
-                        {t.tarea}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono text-[11px] text-stone-600">{c?.duracion || 0}</td>
-                      <td className="px-3 py-2 font-mono text-[11px] text-stone-600 truncate">{fmtDate(t.inicio)}</td>
-                      <td className="px-3 py-2 font-mono text-[11px] text-stone-600 truncate">{fmtDate(t.fin)}</td>
-                      <td className="px-3 py-2 text-[11px] truncate">{renderDeps(t)}</td>
-                      <td className={`px-3 py-2 text-right font-mono text-[11px] ${isCrit ? "font-bold text-rose-700" : "text-stone-600"}`}>
-                        {c ? `${c.slack}d` : "—"}
-                      </td>
-                      <td className="px-3 py-2"><StatePill avance={t.avance} /></td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))}
+            {phases.map(p => {
+              const isCollapsed = collapsedPhases?.has(p.name);
+              return (
+                <React.Fragment key={p.name}>
+                  <tr
+                    onClick={() => onTogglePhase && onTogglePhase(p.name)}
+                    className="cursor-pointer border-b border-stone-200 bg-stone-100/70 hover:bg-stone-200/60"
+                  >
+                    <td className="px-3 py-2 font-mono text-[11px] text-stone-700 truncate">
+                      <span className="inline-flex items-center gap-1">
+                        {isCollapsed
+                          ? <ChevronRight className="h-3 w-3 text-stone-500" />
+                          : <ChevronDown className="h-3 w-3 text-stone-500" />}
+                        {p.wbs}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-[13px] font-semibold text-stone-800 truncate">{p.name}</td>
+                    <td colSpan={6} className="px-3 py-2 text-[11px] text-stone-500">{p.items.length} actividades</td>
+                  </tr>
+                  {!isCollapsed && p.items.map(t => {
+                    const c = cpm.get(t.id);
+                    const isCrit = c?.critical;
+                    const isEditingDur = editingDuration?.id === t.id;
+                    return (
+                      <tr
+                        key={t.id}
+                        onClick={() => onEdit(t)}
+                        className={`cursor-pointer border-b border-stone-100 hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/30" : ""}`}
+                      >
+                        <td className="px-3 py-2 pl-8 font-mono text-[11px] text-stone-500 truncate">{t.wbs}</td>
+                        <td className="px-3 py-2 text-[13px] text-stone-800 truncate">
+                          {t.isMilestone && <Diamond className="mr-1 inline h-3 w-3 text-amber-600" />}
+                          {t.tarea}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {isEditingDur ? (
+                            <input
+                              type="number"
+                              min="1"
+                              autoFocus
+                              value={editingDuration.value}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => setEditingDuration({ id: t.id, value: e.target.value })}
+                              onBlur={() => onDuracionCommit(t.id, editingDuration.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") onDuracionCommit(t.id, editingDuration.value);
+                                if (e.key === "Escape") setEditingDuration(null);
+                              }}
+                              className="w-12 rounded border border-emerald-400 bg-white px-1 py-0.5 text-right font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          ) : (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); if (onTareasChange) setEditingDuration({ id: t.id, value: c?.duracion || 1 }); }}
+                              className={`inline-block min-w-[24px] rounded px-1 font-mono text-[11px] text-stone-700 ${onTareasChange ? "cursor-text hover:bg-emerald-100" : ""}`}
+                              title={onTareasChange ? "Click para editar duración" : ""}
+                            >
+                              {c?.duracion || 0}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[11px] text-stone-600 truncate">{fmtDate(t.inicio)}</td>
+                        <td className="px-3 py-2 font-mono text-[11px] text-stone-600 truncate">{fmtDate(t.fin)}</td>
+                        <td className="px-3 py-2 text-[11px] truncate">{renderDeps(t)}</td>
+                        <td className={`px-3 py-2 text-right font-mono text-[11px] ${isCrit ? "font-bold text-rose-700" : "text-stone-600"}`}>
+                          {c ? `${c.slack}d` : "—"}
+                        </td>
+                        <td className="px-3 py-2"><StatePill avance={t.avance} /></td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
