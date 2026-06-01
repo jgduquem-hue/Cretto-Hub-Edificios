@@ -16,6 +16,7 @@ import {
   AreaChart, Area, ReferenceLine
 } from "recharts";
 import CronogramaProScreen from "./CronogramaProScreen.jsx";
+import NewProjectWizard from "./NewProjectWizard.jsx";
 import ProcurementScreen from "./ProcurementScreen.jsx";
 
 /* ───────────────────────── DATA ───────────────────────── */
@@ -2677,6 +2678,8 @@ function CrettoApp() {
   const [tareas, setTareas] = useState(() => CRONOGRAMA_BASE.map(t => ({ ...t })));
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [userProjects, setUserProjects] = useState([]);
   const [infoKey, setInfoKey] = useState(null);
   const [autoOpenNewItem, setAutoOpenNewItem] = useState(false);
 
@@ -2711,7 +2714,39 @@ function CrettoApp() {
     };
   }, [items]);
 
-  const allProjects = useMemo(() => [activeProject, NEW_PROJECT_TEMPLATE, SECONDARY_PROJECT], [activeProject]);
+  const allProjects = useMemo(() => [activeProject, NEW_PROJECT_TEMPLATE, SECONDARY_PROJECT, ...userProjects], [activeProject, userProjects]);
+
+  const handleWizardSubmit = (form) => {
+    const capex = parseFloat(form.capexEstimado) || 0;
+    const cont = capex * (form.contingenciaPct / 100);
+    const total = capex + cont;
+    const newProject = {
+      id: `user-${Date.now()}`,
+      nombre: form.nombre,
+      cliente: form.cliente,
+      marca: form.marca,
+      direccion: form.direccion,
+      ciudad: form.ciudad,
+      area: parseInt(form.area) || 0,
+      puestos: parseInt(form.puestos) || 0,
+      centroCosto: form.centroCosto,
+      capexTotal: total,
+      capexEjecutado: 0,
+      avanceTiempo: 0,
+      estado: "Planificación",
+      fase: "Definición",
+      pm: form.pmCretto,
+      constructor: form.constructor,
+      arquitecto: form.arquitecto,
+      sponsor: form.sponsor,
+      fechaContrato: form.fechaContrato,
+      fechaInicioObra: form.fechaInicioObra,
+      fechaSoftOpening: form.fechaSoftOpening,
+      fechaCierre: form.fechaCierre,
+      documentosPMI: form.documentos
+    };
+    setUserProjects(prev => [...prev, newProject]);
+  };
 
   // Persistence — restore on mount, save on change
   useEffect(() => {
@@ -2855,7 +2890,7 @@ function CrettoApp() {
             <HomeScreen
               projects={allProjects}
               onSelect={handleProjectSelect}
-              onNew={() => {}}
+              onNew={() => setWizardOpen(true)}
               onInfo={(k) => setInfoKey(k)}
             />
           )}
@@ -2935,6 +2970,13 @@ function CrettoApp() {
           <p className="text-[14px] leading-relaxed text-stone-700">{INFO_CONTENT[infoKey].cuerpo}</p>
         )}
       </Modal>
+
+      {wizardOpen && (
+        <NewProjectWizard
+          onClose={() => setWizardOpen(false)}
+          onSubmit={handleWizardSubmit}
+        />
+      )}
     </div>
   );
 }
