@@ -79,8 +79,6 @@
   .gantt-bar { position:absolute; height:11px; border-radius:3px; }
   .gantt-bar.plan { top:5px; background:var(--cretto-green-soft); border:1px solid var(--cretto-green); }
   .gantt-bar.real { bottom:5px; background:var(--amber); }
-  .gantt-bar.real.delay { background:var(--amber); }
-  .gantt-bar.real.delay { background:var(--red); }
   .gantt-milestone { position:absolute; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:9px solid var(--cretto-green-dark); top:12px; }
   .gantt-milestone.real { border-bottom-color:var(--red); }
   .gantt-legend { display:flex; gap:16px; margin-top:8px; font-size:11px; color:var(--text-soft); border-top:1px solid var(--border); padding-top:8px; }
@@ -124,11 +122,11 @@
   <div class="container">
     <div class="doc-title">Informe de Cierre · Mayo 2026 · v8</div>
     <h1 class="project-title">Cosette 81</h1>
-    <p class="project-subtitle">Calle 81 # 8 - 85, Bogotá · Cliente DLK · Marca Cosette</p>
+    <p class="project-subtitle">Calle 81 # 8 - 85, Bogotá · Cliente DLK SAS · Marca Cosette</p>
     <div class="meta-grid">
-      <div class="meta-item"><div class="label">Cliente</div><div class="value">DLK</div></div>
-      <div class="meta-item"><div class="label">Área</div><div class="value">345 m²</div></div>
-      <div class="meta-item"><div class="label">Capacidad</div><div class="value">106 puestos</div></div>
+      <div class="meta-item"><div class="label">Cliente</div><div class="value">DLK SAS</div></div>
+      <div class="meta-item"><div class="label">Área</div><div class="value">342 m²</div></div>
+      <div class="meta-item"><div class="label">Capacidad</div><div class="value">110 puestos · 35 mesas</div></div>
       <div class="meta-item"><div class="label">PM</div><div class="value">Cretto</div></div>
       <div class="meta-item"><div class="label">Constructor</div><div class="value">Duque Arquitectura</div></div>
       <div class="meta-item"><div class="label">Arquitecto</div><div class="value">Studio Manrique</div></div>
@@ -152,11 +150,11 @@
     <div class="kpi"><div class="kpi-label">Desviación</div><div class="kpi-value delta-pos">+12.35%</div><div class="kpi-sub">+$204.52 M</div></div>
     <div class="kpi"><div class="kpi-label">Demora soft opening</div><div class="kpi-value delta-pos">+4 meses</div><div class="kpi-sub">+1 mes vs plan PM</div></div>
     <div class="kpi"><div class="kpi-label">CAPEX general</div><div class="kpi-value">$3.449 MM</div><div class="kpi-sub">+7.2% vs $3.263 MM presupuestado</div></div>
-    <div class="kpi"><div class="kpi-label">$/m² obra</div><div class="kpi-value">$5.394 K</div><div class="kpi-sub">base 345 m²</div></div>
-    <div class="kpi"><div class="kpi-label">$/m² CAPEX</div><div class="kpi-value">$9.997 K</div><div class="kpi-sub">CAPEX general · base 345 m²</div></div>
+    <div class="kpi"><div class="kpi-label">$/m² obra</div><div class="kpi-value">$5.394 K</div><div class="kpi-sub">base 342 m²</div></div>
+    <div class="kpi"><div class="kpi-label">$/m² CAPEX</div><div class="kpi-value">$9.997 K</div><div class="kpi-sub">CAPEX general · base 342 m²</div></div>
   </div>
   <div class="kpi-grid kpi-grid-small">
-    <div class="kpi small-tile"><div class="kpi-label">$/puesto CAPEX</div><div class="kpi-value">$32.5 M</div><div class="kpi-sub">base 106 puestos</div></div>
+    <div class="kpi small-tile"><div class="kpi-label">$/puesto CAPEX</div><div class="kpi-value">$32.5 M</div><div class="kpi-sub">base 110 puestos</div></div>
     <div class="kpi small-tile"><div class="kpi-label">(Menaje + Mobiliario) / puesto</div><div class="kpi-value">$5.36 M</div><div class="kpi-sub">por puesto</div></div>
     <div class="kpi small-tile"><div class="kpi-label">Menaje / puesto</div><div class="kpi-value">$1.91 M</div><div class="kpi-sub">por puesto</div></div>
     <div class="kpi small-tile"><div class="kpi-label">Mobiliario / puesto</div><div class="kpi-value">$3.45 M</div><div class="kpi-sub">por puesto</div></div>
@@ -185,7 +183,7 @@
     <tr><td><strong>Proyecto</strong></td><td>Cosette 81</td><td><strong>Cliente</strong></td><td>DLK</td></tr>
     <tr><td><strong>Marca</strong></td><td>Cosette</td><td><strong>Centro de costo</strong></td><td>AN 05</td></tr>
     <tr><td><strong>Dirección</strong></td><td colspan="3">Calle 81 # 8 - 85, Bogotá</td></tr>
-    <tr><td><strong>Área obra</strong></td><td>345 m²</td><td><strong>Capacidad</strong></td><td>106 puestos · 3 niveles + terraza pérgola</td></tr>
+    <tr><td><strong>Área obra</strong></td><td>342 m²</td><td><strong>Capacidad</strong></td><td>110 puestos · 35 mesas · 3 niveles + terraza pérgola</td></tr>
     <tr><td><strong>Project Manager</strong></td><td>Cretto</td><td><strong>Modelo</strong></td><td>Predictivo + iterativo en acabados</td></tr>
     <tr><td><strong>Constructor</strong></td><td>Duque Arquitectura</td><td><strong>Modalidad</strong></td><td>Administración delegada</td></tr>
     <tr><td><strong>Arquitecto</strong></td><td>Studio Manrique</td><td><strong>Iluminación</strong></td><td>Studio Manrique</td></tr>
@@ -208,10 +206,10 @@
     <strong>Categorías incluidas dentro del scope de Construcción:</strong> las líneas <em>Iluminación</em>, <em>Aviso Principal</em>, <em>Toldos</em> y <em>Jardinería</em> se ejecutan funcionalmente como parte de la obra civil bajo el constructor (Duque Arquitectura), pero se desglosan separadas en esta tabla para trazabilidad de proveedores y control de pagos.
   </p>
   <table>
-    <thead><tr><th>Categoría</th><th class="num">Presupuestado</th><th class="num">Corte 26/07/2025</th><th class="num">Diferencia</th></tr></thead>
+    <thead><tr><th>Categoría</th><th class="num">Presupuestado<br><span style="font-weight:400;font-size:10px;color:#A8C9A1;">1 sep 2025</span></th><th class="num">Final<br><span style="font-weight:400;font-size:10px;color:#A8C9A1;">1 jun 2026</span></th><th class="num">Diferencia</th></tr></thead>
     <tbody>
       <tr><td>Acero</td><td class="num">$80.000.000</td><td class="num">$52.099.390</td><td class="num delta-neg">−$27.900.610</td></tr>
-      <tr><td>Aviso Principal <span class="small">· en Construcción</span></td><td class="num">$5.000.000</td><td class="num">$3.965.080</td><td class="num delta-neg">−$1.034.920</td></tr>
+      <tr><td>Aviso Principal <span style="font-size:9px;color:#6B7280;">(incluido en construcción)</span></td><td class="num">$5.000.000</td><td class="num">$3.965.080</td><td class="num delta-neg">−$1.034.920</td></tr>
       <tr><td>Calefacción</td><td class="num">$60.000.000</td><td class="num">$15.972.037</td><td class="num delta-neg">−$44.027.963</td></tr>
       <tr><td>Licencia de Construcción</td><td class="num">$20.000.000</td><td class="num">$35.700.000</td><td class="num delta-pos">+$15.700.000</td></tr>
       <tr><td>Construcción</td><td class="num">$1.644.291.544</td><td class="num">$1.864.738.835</td><td class="num delta-pos">+$220.447.291</td></tr>
@@ -219,13 +217,13 @@
       <tr><td>Equipo</td><td class="num">$375.000.000</td><td class="num">$382.508.075</td><td class="num delta-pos">+$7.508.075</td></tr>
       <tr><td>Planta Eléctrica</td><td class="num">$81.900.000</td><td class="num">$48.237.559</td><td class="num delta-neg">−$33.662.441</td></tr>
       <tr><td>Extracción</td><td class="num">$105.000.000</td><td class="num">$119.272.101</td><td class="num delta-pos">+$14.272.101</td></tr>
-      <tr><td>Jardinería <span class="small">· en Construcción</span></td><td class="num">$22.000.000</td><td class="num">$16.426.350</td><td class="num delta-neg">−$5.573.650</td></tr>
-      <tr><td>Iluminación <span class="small">· en Construcción</span></td><td class="num">$100.000.000</td><td class="num">$91.538.460</td><td class="num delta-neg">−$8.461.540</td></tr>
+      <tr><td>Jardinería <span style="font-size:9px;color:#6B7280;">(incluido en construcción)</span></td><td class="num">$22.000.000</td><td class="num">$16.426.350</td><td class="num delta-neg">−$5.573.650</td></tr>
+      <tr><td>Iluminación <span style="font-size:9px;color:#6B7280;">(incluido en construcción)</span></td><td class="num">$100.000.000</td><td class="num">$91.538.460</td><td class="num delta-neg">−$8.461.540</td></tr>
       <tr><td>Menaje</td><td class="num">$230.000.000</td><td class="num">$211.757.814</td><td class="num delta-neg">−$18.242.186</td></tr>
       <tr><td>Mobiliario</td><td class="num">$200.000.000</td><td class="num">$291.227.184</td><td class="num delta-pos">+$91.227.184</td></tr>
       <tr><td>Señalización</td><td class="num">$5.000.000</td><td class="num">$1.915.210</td><td class="num delta-neg">−$3.084.790</td></tr>
       <tr><td>Tecnología</td><td class="num">$90.000.000</td><td class="num">$107.349.836</td><td class="num delta-pos">+$17.349.836</td></tr>
-      <tr><td>Toldos <span class="small">· en Construcción</span></td><td class="num">$60.000.000</td><td class="num">$74.457.110</td><td class="num delta-pos">+$14.457.110</td></tr>
+      <tr><td>Toldos <span style="font-size:9px;color:#6B7280;">(incluido en construcción)</span></td><td class="num">$60.000.000</td><td class="num">$74.457.110</td><td class="num delta-pos">+$14.457.110</td></tr>
       <tr><td>Varios</td><td class="num">$5.000.000</td><td class="num">$4.723.197</td><td class="num delta-neg">−$276.803</td></tr>
       <tr><td>Project Management (Cretto)</td><td class="num">$54.000.000</td><td class="num">$67.500.000</td><td class="num delta-pos">+$13.500.000</td></tr>
       <tr class="totals"><td>TOTAL CAPEX general</td><td class="num">$3.262.501.237</td><td class="num">$3.448.888.237</td><td class="num delta-pos">+$236.026.693 (+7.2%)</td></tr>
@@ -249,23 +247,24 @@
   <table>
     <thead><tr><th>#</th><th>Capítulo</th><th class="num">Inicial</th><th class="num">Ejecutado</th><th class="num">Δ %</th><th>Estado</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>PRELIMINARES</td><td class="num">$28.5 M</td><td class="num">$31.1 M</td><td class="num delta-pos">+9.1%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>2</td><td>CIMENTACION Y ESTRUCTURA</td><td class="num">$71.5 M</td><td class="num">$69.9 M</td><td class="num delta-neg">-2.2%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>2'</td><td>MAMPOSTERIA Y PAÑETE</td><td class="num">$111.9 M</td><td class="num">$114.2 M</td><td class="num delta-pos">+2.1%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>3</td><td>HIDROSANITARIO</td><td class="num">$20.2 M</td><td class="num">$10.7 M</td><td class="num delta-neg">-47.1%</td><td><span class="pill red">🔴</span></td></tr>
-      <tr><td>4</td><td>ELECTRICO, VOZ, DATOS E ILUMINACIÓN</td><td class="num">$74.1 M</td><td class="num">$76.3 M</td><td class="num delta-pos">+2.9%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>5</td><td>BASES Y PISOS</td><td class="num">$170.4 M</td><td class="num">$203.9 M</td><td class="num delta-pos">+19.7%</td><td><span class="pill amber">🟡</span></td></tr>
-      <tr><td>6</td><td>ENCHAPES Y REVESTIMIENTOS MUROS</td><td class="num">$82.8 M</td><td class="num">$76.4 M</td><td class="num delta-neg">-7.8%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>7</td><td>MESONES MARMOL</td><td class="num">$55.4 M</td><td class="num">$26.4 M</td><td class="num delta-neg">-52.3%</td><td><span class="pill red">🔴</span></td></tr>
-      <tr><td>8</td><td>CIELO RASO Y PINTURA</td><td class="num">$81.0 M</td><td class="num">$85.8 M</td><td class="num delta-pos">+5.9%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>9</td><td>CARPINTERIA MADERA</td><td class="num">$128.9 M</td><td class="num">$132.8 M</td><td class="num delta-pos">+3.0%</td><td><span class="pill green">🟢</span></td></tr>
-      <tr><td>10</td><td>CARPINTERIA METALICA Y ACERO INOXIDABLE</td><td class="num">$69.8 M</td><td class="num">$59.5 M</td><td class="num delta-neg">-14.8%</td><td><span class="pill amber">🟡</span></td></tr>
-      <tr><td>11</td><td>VENTANERIA Y ESPEJOS</td><td class="num">$78.4 M</td><td class="num">$158.9 M</td><td class="num delta-pos">+102.8%</td><td><span class="pill red">🔴</span></td></tr>
-      <tr><td>12</td><td>OTROS</td><td class="num">$79.6 M</td><td class="num">$100.4 M</td><td class="num delta-pos">+26.2%</td><td><span class="pill red">🔴</span></td></tr>
-      <tr><td>13</td><td>ASEO DE OBRA</td><td class="num">$19.2 M</td><td class="num">$91.2 M</td><td class="num delta-pos">+374.1%</td><td><span class="pill red">🔴</span></td></tr>
-      <tr><td>14</td><td>JARDINERIA</td><td class="num">$25.0 M</td><td class="num">$15.1 M</td><td class="num delta-neg">-39.5%</td><td><span class="pill red">🔴</span></td></tr>
-      <tr><td>15</td><td>COSTOS INDIRECTOS</td><td class="num">$273.6 M</td><td class="num">$311.6 M</td><td class="num delta-pos">+13.9%</td><td><span class="pill amber">🟡</span></td></tr>
-      <tr class="totals"><td colspan="2">TOTAL (sin IVA)</td><td class="num">$1.370 M</td><td class="num">$1.564 M</td><td class="num delta-pos">+14.16%</td><td><span class="pill amber">🟡</span></td></tr>
+      <tr><td>1</td><td>PRELIMINARES</td><td class="num">$28.5 M</td><td class="num">$31.1 M</td><td class="num delta-pos">+9.1%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>2</td><td>CIMENTACIÓN Y ESTRUCTURA</td><td class="num">$71.5 M</td><td class="num">$69.9 M</td><td class="num delta-neg">−2.2%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>2'</td><td>MAMPOSTERÍA Y PAÑETE</td><td class="num">$111.9 M</td><td class="num">$114.2 M</td><td class="num delta-pos">+2.1%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>3</td><td>HIDROSANITARIO</td><td class="num">$20.2 M</td><td class="num">$10.7 M</td><td class="num delta-neg">−47.1%</td><td><span class="pill solid red">Crítico</span></td></tr>
+      <tr><td>4</td><td>ELÉCTRICO, VOZ, DATOS E ILUMINACIÓN</td><td class="num">$74.1 M</td><td class="num">$76.3 M</td><td class="num delta-pos">+2.9%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>5</td><td>BASES Y PISOS</td><td class="num">$170.4 M</td><td class="num">$203.9 M</td><td class="num delta-pos">+19.7%</td><td><span class="pill solid amber">Alerta</span></td></tr>
+      <tr><td>6</td><td>ENCHAPES Y REVESTIMIENTOS MUROS</td><td class="num">$82.8 M</td><td class="num">$76.4 M</td><td class="num delta-neg">−7.8%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>7</td><td>MESONES MÁRMOL</td><td class="num">$55.4 M</td><td class="num">$26.4 M</td><td class="num delta-neg">−52.3%</td><td><span class="pill solid red">Crítico</span></td></tr>
+      <tr><td>8</td><td>CIELO RASO Y PINTURA</td><td class="num">$81.0 M</td><td class="num">$85.8 M</td><td class="num delta-pos">+5.9%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>9</td><td>CARPINTERÍA MADERA</td><td class="num">$128.9 M</td><td class="num">$125.4 M</td><td class="num delta-neg">−2.7%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>10</td><td>CARPINTERÍA METÁLICA Y ACERO INOX</td><td class="num">$69.8 M</td><td class="num">$59.0 M</td><td class="num delta-neg">−15.6%</td><td><span class="pill solid amber">Alerta</span></td></tr>
+      <tr><td>11</td><td>VENTANERÍA Y ESPEJOS</td><td class="num">$78.4 M</td><td class="num">$157.8 M</td><td class="num delta-pos">+101.3%</td><td><span class="pill solid red">Crítico</span></td></tr>
+      <tr><td>12</td><td>OTROS</td><td class="num">$79.6 M</td><td class="num">$95.6 M</td><td class="num delta-pos">+20.2%</td><td><span class="pill solid amber">Alerta</span></td></tr>
+      <tr><td>13</td><td>ASEO DE OBRA</td><td class="num">$19.2 M</td><td class="num">$88.6 M</td><td class="num delta-pos">+360.4%</td><td><span class="pill solid red">Crítico</span></td></tr>
+      <tr><td>14</td><td>JARDINERÍA</td><td class="num">$25.0 M</td><td class="num">$15.1 M</td><td class="num delta-neg">−39.5%</td><td><span class="pill solid green">OK</span></td></tr>
+      <tr><td>15</td><td>ADICIONALES FINALES</td><td class="num">—</td><td class="num">$19.9 M</td><td class="num delta-pos">nuevo</td><td><span class="pill solid amber">Alerta</span></td></tr>
+      <tr><td>16</td><td>COSTOS INDIRECTOS</td><td class="num">$273.6 M</td><td class="num">$312.2 M</td><td class="num delta-pos">+14.1%</td><td><span class="pill solid amber">Alerta</span></td></tr>
+      <tr class="totals"><td colspan="2">TOTAL (sin IVA)</td><td class="num">$1.370 M</td><td class="num">$1.568 M</td><td class="num delta-pos">+14.45%</td><td><span class="pill solid amber">Alerta</span></td></tr>
     </tbody>
   </table>
   <p class="small">El detalle item por item, los items adicionales por capítulo y el análisis de cada uno está en el <a href="#anexo-a">Anexo A</a>.</p>
@@ -297,7 +296,7 @@
 
 <section id="s4">
   <h2><span class="section-num">4.</span> Cronograma</h2>
-  <p class="lead">La obra empezó el 1 de octubre de 2025 con fecha contractual 15 de diciembre — apenas 75 días para una intervención de 345 m² en 3 niveles, con cocina completa y refuerzo estructural. La fecha era inviable. El plan PM realista interno apuntaba a 15 de marzo. La realidad cerró ~15 de abril.</p>
+  <p class="lead">La obra empezó el 1 de octubre de 2025 con fecha contractual 15 de diciembre — apenas 75 días para una intervención de 342 m² (110 puestos) en 3 niveles, con cocina completa y refuerzo estructural. La fecha era inviable. El plan PM realista interno apuntaba a 15 de marzo. La realidad cerró ~15 de abril.</p>
 
   <h3>4.1 Plan vs Real por actividad</h3>
   <div class="gantt">
@@ -328,7 +327,7 @@
   <table>
     <thead><tr><th>Causa</th><th class="num">Días aprox</th><th>Atribuible a</th></tr></thead>
     <tbody>
-      <tr><td>Línea base contractual irreal (75 días imposibles)</td><td class="num">~90</td><td>Comercial / firma</td></tr>
+      <tr><td>Línea base contractual irreal (75 días irreales)</td><td class="num">~90</td><td>Comercial / firma</td></tr>
       <tr><td>Adicionales aprobados (alcance)</td><td class="num">~30</td><td>Cliente</td></tr>
       <tr><td>Demoras en pedidos importados (vidrios, muebles, pérgolas)</td><td class="num">~20-30</td><td>Constructor</td></tr>
       <tr><td>Equipos cocina llegaron antes que el espacio</td><td class="num">~10-15</td><td>Coordinación constructor + PM</td></tr>
@@ -359,7 +358,7 @@
 
   <div class="lesson"><span class="lesson-id">LL-03</span>
     <div class="lesson-title">Las fechas comerciales irreales son el principal driver de demora</div>
-    <p>De los 155-175 días de demora, ~90 días son responsabilidad de aceptar una fecha contractual de 75 días, técnicamente imposible. <strong>Acción:</strong> cláusula que permita al PM emitir "objeción de viabilidad de cronograma" antes de firma comercial.</p></div>
+    <p>De los 155-175 días de demora, ~90 días son responsabilidad de aceptar una fecha contractual de 75 días, técnicamente irreal. <strong>Acción:</strong> cláusula que permita al PM emitir "objeción de viabilidad de cronograma" antes de firma comercial.</p></div>
 
   <div class="lesson"><span class="lesson-id">LL-04</span>
     <div class="lesson-title">Sanity Check List del PM al recibir el presupuesto inicial</div>
@@ -413,8 +412,7 @@
   <h2><span class="section-num">8.</span> Cierre y Firmas</h2>
   <h3>8.1 Pendientes administrativos al cierre</h3>
   <ol>
-    <li>Compilar cartas de garantía formales de proveedores marcados "por confirmar" (próximas 4 semanas).</li>
-    <li>Implementar internamente Sanity Check List del PM, formato SCO y Pre-Construction Agreement antes del próximo proyecto.</li>
+    <li>Se entrega <strong>AZ con fichas técnicas y documentos de entrega a satisfacción de equipos</strong>, que servirá como respaldo de garantías de los proveedores de equipos. La AZ se entrega físicamente a <strong>Ana María Huertas</strong> el día <strong>2 de junio de 2026</strong> en la dirección del local Cosette 81.</li>
   </ol>
   <p class="small">La documentación entregada, garantías activas y punch list completo están en el <a href="#anexo-f">Anexo F</a>.</p>
 
@@ -422,8 +420,7 @@
   <table>
     <thead><tr><th>Empresa</th><th>Nombre</th><th>Cargo</th><th>Firma</th><th>Fecha</th></tr></thead>
     <tbody>
-      <tr><td>DLK</td><td>Enrique Serna</td><td>Gerente Marca Cosette</td><td>______________</td><td>__________</td></tr>
-      <tr><td>DLK</td><td>Angela Llano</td><td>—</td><td>______________</td><td>__________</td></tr>
+      <tr><td>DLK SAS</td><td>Enrique Serna</td><td>Gerente Marca Cosette</td><td>______________</td><td>__________</td></tr>
       <tr><td>Cretto</td><td>Jose Guillermo Duque</td><td>Gerente General · PM</td><td>______________</td><td>__________</td></tr>
     </tbody>
   </table>
