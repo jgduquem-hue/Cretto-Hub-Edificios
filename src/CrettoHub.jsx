@@ -15,6 +15,8 @@ import {
   ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell,
   AreaChart, Area, ReferenceLine
 } from "recharts";
+import CronogramaProScreen from "./CronogramaProScreen.jsx";
+import NewProjectWizard from "./NewProjectWizard.jsx";
 import ProcurementScreen from "./ProcurementScreen.jsx";
 
 /* ───────────────────────── DATA ───────────────────────── */
@@ -2676,6 +2678,8 @@ function CrettoApp() {
   const [tareas, setTareas] = useState(() => CRONOGRAMA_BASE.map(t => ({ ...t })));
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [userProjects, setUserProjects] = useState([]);
   const [infoKey, setInfoKey] = useState(null);
   const [autoOpenNewItem, setAutoOpenNewItem] = useState(false);
 
@@ -2710,7 +2714,54 @@ function CrettoApp() {
     };
   }, [items]);
 
-  const allProjects = useMemo(() => [activeProject, NEW_PROJECT_TEMPLATE, SECONDARY_PROJECT], [activeProject]);
+  const allProjects = useMemo(() => [activeProject, NEW_PROJECT_TEMPLATE, SECONDARY_PROJECT, ...userProjects], [activeProject, userProjects]);
+
+  const handleWizardSubmit = (form) => {
+    const capex = parseFloat(form.capexEstimado) || 0;
+    const cont = capex * (form.contingenciaPct / 100);
+    const total = capex + cont;
+    const newProject = {
+      id: `user-${Date.now()}`,
+      tipoProyecto: form.tipoProyecto,
+      nombre: form.nombre,
+      cliente: form.cliente,
+      marca: form.marca,
+      direccion: form.direccion,
+      ciudad: form.ciudad,
+      area: parseInt(form.area) || 0,
+      // 'puestos' se mantiene como nombre del campo para compatibilidad con UI
+      // existente, pero ahora representa "unidades" (apartamentos / locales / puestos)
+      puestos: parseInt(form.unidades) || 0,
+      unidades: parseInt(form.unidades) || 0,
+      pisos: parseInt(form.pisos) || 0,
+      centroCosto: form.centroCosto,
+      capexTotal: total,
+      capexEjecutado: 0,
+      avanceTiempo: 0,
+      estado: "Planificación",
+      fase: "Definición",
+      pm: form.pmCretto,
+      constructor: form.constructor,
+      arquitectos: (form.arquitectos || []).filter(a => a && a.trim()),
+      arquitecto: ((form.arquitectos || []).filter(a => a && a.trim())[0]) || "", // legacy compat
+      ingenieroEstructural: form.ingenieroEstructural,
+      ingenieroSuelos: form.ingenieroSuelos,
+      ingenieroHidraulico: form.ingenieroHidraulico,
+      ingenieroElectrico: form.ingenieroElectrico,
+      interventor: form.interventor,
+      gerenteComercial: form.gerenteComercial,
+      residenteObra: form.residenteObra,
+      sponsors: (form.sponsors || []).filter(s => s && s.trim()),
+      sponsor: ((form.sponsors || []).filter(s => s && s.trim())[0]) || "", // legacy compat
+      fechaContrato: form.fechaContrato,
+      fechaInicioObra: form.fechaInicioObra,
+      fechaEntrega: form.fechaEntrega,
+      fechaCierre: form.fechaCierre,
+      financiamiento: form.financiamiento,
+      documentosPMI: form.documentos
+    };
+    setUserProjects(prev => [...prev, newProject]);
+  };
 
   // Persistence — restore on mount, save on change
   useEffect(() => {
@@ -2854,7 +2905,7 @@ function CrettoApp() {
             <HomeScreen
               projects={allProjects}
               onSelect={handleProjectSelect}
-              onNew={() => {}}
+              onNew={() => setWizardOpen(true)}
               onInfo={(k) => setInfoKey(k)}
             />
           )}
@@ -2876,7 +2927,7 @@ function CrettoApp() {
             />
           )}
           {screen === "cronograma" && (
-            <CronogramaScreen
+            <CronogramaProScreen
               tareas={tareas}
               onTareasChange={setTareas}
               onInfo={(k) => setInfoKey(k)}
@@ -2934,6 +2985,13 @@ function CrettoApp() {
           <p className="text-[14px] leading-relaxed text-stone-700">{INFO_CONTENT[infoKey].cuerpo}</p>
         )}
       </Modal>
+
+      {wizardOpen && (
+        <NewProjectWizard
+          onClose={() => setWizardOpen(false)}
+          onSubmit={handleWizardSubmit}
+        />
+      )}
     </div>
   );
 }
