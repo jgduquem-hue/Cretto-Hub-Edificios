@@ -1319,6 +1319,44 @@ const TaskDrawer = ({ task, tareas, phases, onClose, onSave, onDelete }) => {
             </Field>
           </div>
 
+          {/* WBS link */}
+          <Field label="🔗 WBS del CAPEX (para EVM)">
+            <select
+              value={form.wbsKey || ""}
+              onChange={e => setForm({ ...form, wbsKey: e.target.value })}
+              className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              title="Vincula esta tarea a un paquete WBS del CAPEX para cálculo de EV"
+            >
+              <option value="">— Sin vínculo (match por nombre) —</option>
+              <option disabled>── Construcción (4.x) ──</option>
+              <option value="4.1">4.1 Preliminares y demoliciones</option>
+              <option value="4.2">4.2 Cimentación</option>
+              <option value="4.3">4.3 Estructura</option>
+              <option value="4.4">4.4 Mampostería</option>
+              <option value="4.5">4.5 MEP (general)</option>
+              <option value="4.5.1">4.5.1 MEP — Hidrosanitarias</option>
+              <option value="4.5.2">4.5.2 MEP — Eléctricas</option>
+              <option value="4.5.3">4.5.3 MEP — HVAC</option>
+              <option value="4.6">4.6 Acabados</option>
+              <option value="4.7">4.7 Fachadas y cubiertas</option>
+              <option value="4.8">4.8 Equipos (ascensores, planta)</option>
+              <option value="4.9">4.9 Urbanismo y zonas comunes</option>
+              <option disabled>── Otros capítulos ──</option>
+              <option value="1">1. Lote</option>
+              <option value="2">2. Estudios y diseños</option>
+              <option value="3">3. Licencias</option>
+              <option value="5">5. Honorarios</option>
+              <option value="6">6. Comercial</option>
+              <option value="7">7. Financieros</option>
+              <option value="8">8. Legales</option>
+              <option value="9">9. Impuestos</option>
+              <option value="10">10. Imprevistos</option>
+            </select>
+            <span className="mt-1 block text-[10px] text-stone-500">
+              Vincular explícitamente evita falsos matches por nombre. Usado por el módulo EVM CAPEX/Cronograma y por el Modelo Financiero en vivo.
+            </span>
+          </Field>
+
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Inicio">

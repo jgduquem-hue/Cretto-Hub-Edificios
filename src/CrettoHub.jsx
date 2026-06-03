@@ -18,6 +18,18 @@ import {
 import CronogramaProScreen from "./CronogramaProScreen.jsx";
 import NewProjectWizard from "./NewProjectWizard.jsx";
 import ProcurementScreen from "./ProcurementScreen.jsx";
+import RepositorioDocumentos from "./RepositorioDocumentos.jsx";
+import Reuniones from "./Reuniones.jsx";
+import Pendientes from "./Pendientes.jsx";
+import CronogramaProyectoScreen from "./CronogramaProyectoScreen.jsx";
+import RaciNotifyModal from "./RaciNotify.jsx";
+import RaciMatrix from "./RaciMatrix.jsx";
+import BitacoraInversionistas from "./BitacoraInversionistas.jsx";
+import ModeloFinanciero from "./ModeloFinanciero.jsx";
+import CapexEdificios from "./CapexEdificios.jsx";
+import EvmCapexCronograma from "./EvmCapexCronograma.jsx";
+import PagosProveedores, { acByWbs } from "./PagosProveedores.jsx";
+import EmailSettings from "./EmailSettings.jsx";
 
 /* ───────────────────────── DATA ───────────────────────── */
 
@@ -274,7 +286,17 @@ const COMMANDS = [
   { id: "weekly", label: "Generar acta de comité semanal", desc: "Plantilla con 6 bloques", action: "navigate", target: "informes", subAction: "weekly", icon: FileCheck, group: "Acciones" },
   { id: "risks", label: "Ver registro de riesgos", desc: "Riesgos identificados y mitigaciones", action: "navigate", target: "riesgos", icon: AlertTriangle, group: "Acciones" },
   { id: "change", label: "Solicitud de cambio", desc: "Crear control de cambios", action: "navigate", target: "cambios", icon: Edit3, group: "Acciones" },
-  { id: "procurement", label: "Abrir Procurement", desc: "Listado de proveedores del proyecto", action: "navigate", target: "procurement", icon: Truck, group: "Proyecto activo" }
+  { id: "procurement", label: "Abrir Procurement", desc: "Listado de proveedores del proyecto", action: "navigate", target: "procurement", icon: Truck, group: "Proyecto activo" },
+  { id: "cron-proy", label: "Cronograma de proyecto", desc: "Hitos gerenciales (licencias, preventas, fiducia, escrituración)", action: "navigate", target: "cron-proyecto", icon: Calendar, group: "Proyecto activo" },
+  { id: "repo-docs", label: "Repositorio de documentos", desc: "Arquitectura, técnicos, legales, licencias, comerciales, fiduciaria", action: "navigate", target: "repo-docs", icon: FileText, group: "Proyecto activo" },
+  { id: "reuniones", label: "Reuniones", desc: "Grabar reuniones y extraer actividades", action: "navigate", target: "reuniones", icon: Users, group: "Proyecto activo" },
+  { id: "pendientes", label: "Pendientes", desc: "Seguimiento de actividades", action: "navigate", target: "pendientes", icon: ListChecks, group: "Proyecto activo" },
+  { id: "raci", label: "Matriz RACI", desc: "Editar responsabilidades y notificaciones", action: "navigate", target: "raci", icon: Share2, group: "Proyecto activo" },
+  { id: "bitacora", label: "Bitácora inversionistas", desc: "Fotos de avance, % y newsletter semanal", action: "navigate", target: "bitacora", icon: Image, group: "Proyecto activo" },
+  { id: "modelo-fin", label: "Modelo financiero", desc: "Proyecto, fiducia, inversionista", action: "navigate", target: "modelo-fin", icon: TrendingUp, group: "Proyecto activo" },
+  { id: "capex-edif", label: "CAPEX edificación", desc: "10 capítulos · WBS construcción · 5 versiones comparables", action: "navigate", target: "capex-edif", icon: DollarSign, group: "Proyecto activo" },
+  { id: "evm-capex", label: "EVM CAPEX/Cronograma", desc: "Valor ganado por paquete WBS (PV/EV/AC, CPI/SPI)", action: "navigate", target: "evm-capex", icon: Activity, group: "Proyecto activo" },
+  { id: "pagos", label: "Pagos a proveedores", desc: "Registro de facturas y pagos · alimenta el AC del CAPEX", action: "navigate", target: "pagos", icon: Truck, group: "Proyecto activo" }
 ];
 
 const CommandPalette = ({ open, onClose, onCommand, query, setQuery }) => {
@@ -434,9 +456,19 @@ const Sidebar = ({ screen, onNav }) => {
   const items = [
     { id: "home", icon: Home, label: "Inicio" },
     { id: "all-projects", icon: Folders, label: "Proyectos" },
-    { id: "global-cron", icon: Calendar, label: "Cronograma" },
-    { id: "global-docs", icon: FileText, label: "Documentos" },
-    { id: "global-evm", icon: BarChart3, label: "Métricas" }
+    { id: "cron-proyecto", icon: Calendar, label: "Cronograma proyecto" },
+    { id: "cron-construccion", icon: Hammer, label: "Cronograma construcción" },
+    { id: "repo-docs", icon: FileText, label: "Documentos" },
+    { id: "reuniones", icon: Users, label: "Reuniones" },
+    { id: "pendientes", icon: ListChecks, label: "Pendientes" },
+    { id: "raci", icon: Share2, label: "Matriz RACI" },
+    { id: "bitacora", icon: Image, label: "Bitácora inversionistas" },
+    { id: "modelo-fin", icon: TrendingUp, label: "Modelo financiero" },
+    { id: "capex-edif", icon: DollarSign, label: "CAPEX edificios" },
+    { id: "evm-capex", icon: Activity, label: "EVM CAPEX/Cronograma" },
+    { id: "pagos", icon: Truck, label: "Pagos a proveedores" },
+    { id: "global-evm", icon: BarChart3, label: "Métricas" },
+    { id: "email-settings", icon: Settings, label: "Config. correo" }
   ];
   return (
     <nav className="hidden w-14 flex-col items-center gap-1 border-r border-stone-200 bg-stone-50/50 py-4 lg:flex">
@@ -2682,6 +2714,25 @@ function CrettoApp() {
   const [userProjects, setUserProjects] = useState([]);
   const [infoKey, setInfoKey] = useState(null);
   const [autoOpenNewItem, setAutoOpenNewItem] = useState(false);
+  const [raciPayload, setRaciPayload] = useState(null);
+  const [raciData, setRaciData] = useState(null); // { roles, matrix } del proyecto activo
+  const [capexPartidas, setCapexPartidas] = useState([]); // compartido para EVM
+  const [pagos, setPagos] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const projId = (selectedProject?.id) || "default";
+        const r = await window.storage.get(`crettohub:capex-edif:${projId}`);
+        if (r && r.value) setCapexPartidas(JSON.parse(r.value));
+        const r2 = await window.storage.get(`crettohub:pagos:${projId}`);
+        if (r2 && r2.value) setPagos(JSON.parse(r2.value));
+      } catch {}
+    })();
+  }, [selectedProject?.id]);
+  const pagosPorWbs = useMemo(() => acByWbs(pagos, { incluirCausados: false }), [pagos]);
+  const pendientesAdderRef = useRef(null);
+  const registerPendientesAdder = (fn) => { pendientesAdderRef.current = fn; };
+  const addPendientes = (arr) => { if (pendientesAdderRef.current) pendientesAdderRef.current(arr); };
 
   // Compute metrics for the active project from the live items state
   const activeProject = useMemo(() => {
@@ -2761,6 +2812,14 @@ function CrettoApp() {
       documentosPMI: form.documentos
     };
     setUserProjects(prev => [...prev, newProject]);
+    // Preguntar a quién notificar por RACI sobre creación del proyecto
+    setRaciPayload({
+      tipo: "cambio-alcance",
+      projectName: newProject.nombre,
+      titulo: `Proyecto creado: ${newProject.nombre}`,
+      contexto: `Promotor: ${newProject.cliente} · CAPEX bajo gerencia: $${Math.round(total).toLocaleString("es-CO").replace(/,/g, ".")}`,
+      onSent: () => setRaciPayload(null)
+    });
   };
 
   // Persistence — restore on mount, save on change
@@ -2835,6 +2894,16 @@ function CrettoApp() {
     else if (tool === "documentos") navigateTo("documentos");
     else if (tool === "riesgos") navigateTo("riesgos");
     else if (tool === "procurement") navigateTo("procurement");
+    else if (tool === "cron-proyecto") navigateTo("cron-proyecto");
+    else if (tool === "repo-docs") navigateTo("repo-docs");
+    else if (tool === "reuniones") navigateTo("reuniones");
+    else if (tool === "pendientes") navigateTo("pendientes");
+    else if (tool === "raci") navigateTo("raci");
+    else if (tool === "bitacora") navigateTo("bitacora");
+    else if (tool === "modelo-fin") navigateTo("modelo-fin");
+    else if (tool === "capex-edif") navigateTo("capex-edif");
+    else if (tool === "evm-capex") navigateTo("evm-capex");
+    else if (tool === "pagos") navigateTo("pagos");
   };
 
   const handleCommand = (cmdId) => {
@@ -2852,6 +2921,10 @@ function CrettoApp() {
       case "go-documentos": setSelectedProject(activeProject); navigateTo("documentos"); break;
       case "go-riesgos": setSelectedProject(activeProject); navigateTo("riesgos"); break;
       case "go-procurement": setSelectedProject(activeProject); navigateTo("procurement"); break;
+      case "go-cron-proyecto": setSelectedProject(activeProject); navigateTo("cron-proyecto"); break;
+      case "go-repo-docs": setSelectedProject(activeProject); navigateTo("repo-docs"); break;
+      case "go-reuniones": setSelectedProject(activeProject); navigateTo("reuniones"); break;
+      case "go-pendientes": setSelectedProject(activeProject); navigateTo("pendientes"); break;
       case "new-item":
         setSelectedProject(activeProject);
         setAutoOpenNewItem(true);
@@ -2873,16 +2946,36 @@ function CrettoApp() {
     else if (screen === "documentos") crumbs.push({ label: "Documentos" });
     else if (screen === "riesgos") crumbs.push({ label: "Riesgos" });
     else if (screen === "procurement") crumbs.push({ label: "Procurement" });
+    else if (screen === "cron-proyecto") crumbs.push({ label: "Cronograma de proyecto" });
+    else if (screen === "repo-docs") crumbs.push({ label: "Repositorio documentos" });
+    else if (screen === "reuniones") crumbs.push({ label: "Reuniones" });
+    else if (screen === "pendientes") crumbs.push({ label: "Pendientes" });
+    else if (screen === "raci") crumbs.push({ label: "Matriz RACI" });
+    else if (screen === "bitacora") crumbs.push({ label: "Bitácora inversionistas" });
+    else if (screen === "modelo-fin") crumbs.push({ label: "Modelo financiero" });
+    else if (screen === "capex-edif") crumbs.push({ label: "CAPEX edificación" });
+    else if (screen === "evm-capex") crumbs.push({ label: "EVM CAPEX/Cronograma" });
+    else if (screen === "pagos") crumbs.push({ label: "Pagos a proveedores" });
+    else if (screen === "email-settings") crumbs.push({ label: "Configuración correo" });
     return crumbs;
   }, [screen, selectedProject]);
 
   const onNav = (key) => {
     if (key === "home") { setScreen("home"); setHistory([]); }
-    else if (key === "projects" && allProjects.length > 0) { handleProjectSelect(activeProject); }
-    else if (key === "calendar" && selectedProject) { navigateTo("cronograma"); }
-    else if (key === "calendar") { setSelectedProject(activeProject); navigateTo("cronograma"); }
-    else if (key === "reports") { setSelectedProject(activeProject); navigateTo("evm"); }
-    else if (key === "docs") { setSelectedProject(activeProject); navigateTo("documentos"); }
+    else if (key === "all-projects") { handleProjectSelect(activeProject); }
+    else if (key === "cron-proyecto") { setSelectedProject(activeProject); navigateTo("cron-proyecto"); }
+    else if (key === "cron-construccion") { setSelectedProject(activeProject); navigateTo("cronograma"); }
+    else if (key === "repo-docs") { setSelectedProject(activeProject); navigateTo("repo-docs"); }
+    else if (key === "reuniones") { setSelectedProject(activeProject); navigateTo("reuniones"); }
+    else if (key === "pendientes") { setSelectedProject(activeProject); navigateTo("pendientes"); }
+    else if (key === "raci") { setSelectedProject(activeProject); navigateTo("raci"); }
+    else if (key === "bitacora") { setSelectedProject(activeProject); navigateTo("bitacora"); }
+    else if (key === "modelo-fin") { setSelectedProject(activeProject); navigateTo("modelo-fin"); }
+    else if (key === "capex-edif") { setSelectedProject(activeProject); navigateTo("capex-edif"); }
+    else if (key === "evm-capex") { setSelectedProject(activeProject); navigateTo("evm-capex"); }
+    else if (key === "pagos") { setSelectedProject(activeProject); navigateTo("pagos"); }
+    else if (key === "email-settings") { navigateTo("email-settings"); }
+    else if (key === "global-evm") { setSelectedProject(activeProject); navigateTo("evm"); }
   };
 
   // Pre-computed entregas for project detail screen — pulls from data
@@ -2965,6 +3058,70 @@ function CrettoApp() {
               project={selectedProject || activeProject}
             />
           )}
+          {screen === "cron-proyecto" && (
+            <CronogramaProyectoScreen
+              project={selectedProject || activeProject}
+            />
+          )}
+          {screen === "repo-docs" && (
+            <RepositorioDocumentos
+              project={selectedProject || activeProject}
+              raciData={raciData}
+            />
+          )}
+          {screen === "reuniones" && (
+            <Reuniones
+              project={selectedProject || activeProject}
+              onAddPendientes={addPendientes}
+              raciData={raciData}
+            />
+          )}
+          {screen === "pendientes" && (
+            <Pendientes
+              project={selectedProject || activeProject}
+              registerAdder={registerPendientesAdder}
+            />
+          )}
+          {screen === "raci" && (
+            <RaciMatrix
+              project={selectedProject || activeProject}
+              onMatrixChange={setRaciData}
+            />
+          )}
+          {screen === "bitacora" && (
+            <BitacoraInversionistas
+              project={selectedProject || activeProject}
+            />
+          )}
+          {screen === "modelo-fin" && (
+            <ModeloFinanciero
+              project={selectedProject || activeProject}
+              partidas={capexPartidas}
+              tareas={tareas}
+            />
+          )}
+          {screen === "capex-edif" && (
+            <CapexEdificios
+              project={selectedProject || activeProject}
+              tareas={tareas}
+              onPartidasChange={setCapexPartidas}
+              pagosPorWbs={pagosPorWbs}
+            />
+          )}
+          {screen === "evm-capex" && (
+            <EvmCapexCronograma
+              project={selectedProject || activeProject}
+              partidas={capexPartidas.map(p => pagosPorWbs[p.wbs] != null ? { ...p, valores: { ...p.valores, ejecutado: pagosPorWbs[p.wbs] } } : p)}
+              tareas={tareas}
+            />
+          )}
+          {screen === "pagos" && (
+            <PagosProveedores
+              project={selectedProject || activeProject}
+              onPagosChange={setPagos}
+            />
+          )}
+          {screen === "email-settings" && <EmailSettings />}
         </main>
       </div>
 
@@ -2992,6 +3149,13 @@ function CrettoApp() {
           onSubmit={handleWizardSubmit}
         />
       )}
+
+      <RaciNotifyModal
+        open={!!raciPayload}
+        payload={raciPayload}
+        raciData={raciData}
+        onClose={() => setRaciPayload(null)}
+      />
     </div>
   );
 }
