@@ -8,7 +8,7 @@ import {
   Download, Sparkles, ArrowUpRight, MoreHorizontal, Tag,
   MapPin, Users, Building2, Hammer, ChefHat, Lightbulb,
   Sofa, Utensils, Wind, Flame, Trees, Pen, Briefcase,
-  Share2, CheckCircle2
+  Share2, CheckCircle2, BookOpen
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -30,6 +30,9 @@ import CapexEdificios from "./CapexEdificios.jsx";
 import EvmCapexCronograma from "./EvmCapexCronograma.jsx";
 import PagosProveedores, { acByWbs } from "./PagosProveedores.jsx";
 import EmailSettings from "./EmailSettings.jsx";
+import DiccionarioProcedimientos from "./DiccionarioProcedimientos.jsx";
+import StakeholdersDB from "./StakeholdersDB.jsx";
+import FolderSetupBanner from "./FolderSetupBanner.jsx";
 
 /* ───────────────────────── DATA ───────────────────────── */
 
@@ -66,6 +69,7 @@ const CRONOGRAMA_BASE = [
   { id: 28, fase: "Cierre", tarea: "Informe de cierre y handover", inicio: "2026-06-16", fin: "2026-06-30", baselineInicio: "2026-06-11", baselineFin: "2026-06-25", avance: 0, color: "#14201A", dep: [27] }
 ];
 
+/* Cosette 109 — proyecto histórico cerrado */
 const SECONDARY_PROJECT = {
   id: "cosette-109",
   nombre: "Cosette 109",
@@ -82,24 +86,6 @@ const SECONDARY_PROJECT = {
   fin: "2025-06-30",
   fase: "Operación",
   color: "#4A7C59"
-};
-
-const NEW_PROJECT_TEMPLATE = {
-  id: "tomate-fdez",
-  nombre: "Tomate Fernández",
-  cliente: "Grupo Tomate",
-  direccion: "Cra 11 # 84-12",
-  area: 280,
-  puestos: 98,
-  capexTotal: 1850000000,
-  capexEjecutado: 92500000,
-  avancePct: 5,
-  avanceTiempo: 8,
-  estado: "Definición",
-  inicio: "2026-04-10",
-  fin: "2026-12-15",
-  fase: "Licencias",
-  color: "#A07B4A"
 };
 
 /* ───────────────────────── HELPERS ───────────────────────── */
@@ -296,7 +282,9 @@ const COMMANDS = [
   { id: "modelo-fin", label: "Modelo financiero", desc: "Proyecto, fiducia, inversionista", action: "navigate", target: "modelo-fin", icon: TrendingUp, group: "Proyecto activo" },
   { id: "capex-edif", label: "CAPEX edificación", desc: "10 capítulos · WBS construcción · 5 versiones comparables", action: "navigate", target: "capex-edif", icon: DollarSign, group: "Proyecto activo" },
   { id: "evm-capex", label: "EVM CAPEX/Cronograma", desc: "Valor ganado por paquete WBS (PV/EV/AC, CPI/SPI)", action: "navigate", target: "evm-capex", icon: Activity, group: "Proyecto activo" },
-  { id: "pagos", label: "Pagos a proveedores", desc: "Registro de facturas y pagos · alimenta el AC del CAPEX", action: "navigate", target: "pagos", icon: Truck, group: "Proyecto activo" }
+  { id: "pagos", label: "Pagos a proveedores", desc: "Registro de facturas y pagos · alimenta el AC del CAPEX", action: "navigate", target: "pagos", icon: Truck, group: "Proyecto activo" },
+  { id: "info-interes", label: "Información de interés", desc: "Diccionario de procedimientos (fiducia, banco, licencias)", action: "navigate", target: "info-interes", icon: BookOpen, group: "Proyecto activo" },
+  { id: "stakeholders", label: "Base de stakeholders", desc: "Reina · contactos, inversionistas, proveedores, PMI", action: "navigate", target: "stakeholders", icon: Users, group: "Proyecto activo" }
 ];
 
 const CommandPalette = ({ open, onClose, onCommand, query, setQuery }) => {
@@ -467,6 +455,8 @@ const Sidebar = ({ screen, onNav }) => {
     { id: "capex-edif", icon: DollarSign, label: "CAPEX edificios" },
     { id: "evm-capex", icon: Activity, label: "EVM CAPEX/Cronograma" },
     { id: "pagos", icon: Truck, label: "Pagos a proveedores" },
+    { id: "info-interes", icon: BookOpen, label: "Información de interés" },
+    { id: "stakeholders", icon: Users, label: "Stakeholders DB" },
     { id: "global-evm", icon: BarChart3, label: "Métricas" },
     { id: "email-settings", icon: Settings, label: "Config. correo" }
   ];
@@ -621,7 +611,7 @@ const HomeScreen = ({ projects, onSelect, onNew, onInfo }) => {
           { label: "Proyectos activos", value: totalActive, sub: `${projects.length} totales`, icon: Folders },
           { label: "CAPEX total bajo gestión", value: fmtCOPshort(totalCapex), sub: `${fmtCOPshort(totalEjec)} ejecutado`, icon: DollarSign },
           { label: "% Avance promedio", value: `${avgTime.toFixed(0)}%`, sub: "ponderado por tiempo", icon: TrendingUp },
-          { label: "Próximo soft opening", value: "16 may", sub: "Cosette 81 · 19 días", icon: Calendar }
+          { label: "Próximo hito", value: "—", sub: "Sin hitos próximos", icon: Calendar }
         ].map((m, i) => {
           const Icon = m.icon;
           return (
@@ -637,22 +627,44 @@ const HomeScreen = ({ projects, onSelect, onNew, onInfo }) => {
         })}
       </div>
 
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="font-serif text-[20px] tracking-tight text-stone-900">Proyectos</h2>
-          <InfoButton onClick={() => onInfo("home-projects")} />
-        </div>
-        <div className="flex items-center gap-2 text-xs text-stone-500">
-          <Filter className="h-3.5 w-3.5" />
-          <span>Todos · {projects.length}</span>
-        </div>
-      </div>
+      {(() => {
+        const activos = projects.filter(p => p.estado !== "Cerrado");
+        const archivados = projects.filter(p => p.estado === "Cerrado");
+        return (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="font-serif text-[20px] tracking-tight text-stone-900">Proyectos activos</h2>
+                <InfoButton onClick={() => onInfo("home-projects")} />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-500">
+                <Filter className="h-3.5 w-3.5" />
+                <span>Activos · {activos.length}</span>
+              </div>
+            </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {projects.map(p => (
-          <ProjectCard key={p.id} project={p} onClick={() => onSelect(p)} />
-        ))}
-      </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {activos.map(p => (
+                <ProjectCard key={p.id} project={p} onClick={() => onSelect(p)} />
+              ))}
+            </div>
+
+            {archivados.length > 0 && (
+              <>
+                <div className="mt-10 mb-3 flex items-center justify-between">
+                  <h2 className="font-serif text-[18px] tracking-tight text-stone-500">Proyectos archivados</h2>
+                  <span className="text-xs text-stone-400">{archivados.length} cerrados</span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 opacity-75 md:grid-cols-2 xl:grid-cols-3">
+                  {archivados.map(p => (
+                    <ProjectCard key={p.id} project={p} onClick={() => onSelect(p)} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };
@@ -669,15 +681,60 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
     return { total, ent, ped, cot, pen };
   }, [items]);
 
-  const moneyPct = (stats.ent / stats.total) * 100;
-  const tools = [
-    { id: "capex", title: "CAPEX", desc: "Items, proveedores y estado de compra", icon: DollarSign, count: items.length, sub: "items presupuestados", color: "from-emerald-50 to-white", iconColor: "text-emerald-700" },
-    { id: "cronograma", title: "Cronograma", desc: "Diagrama de Gantt — baseline vs real", icon: Calendar, count: CRONOGRAMA_BASE.length, sub: "actividades", color: "from-sky-50 to-white", iconColor: "text-sky-700" },
-    { id: "evm", title: "EVM Dashboard", desc: "Earned Value · CPI · SPI · curvas", icon: BarChart3, count: "94%", sub: "CPI consolidado", color: "from-amber-50 to-white", iconColor: "text-amber-700" },
-    { id: "documentos", title: "Documentos", desc: "11 entregables PMI del proyecto", icon: FileText, count: 11, sub: "documentos PMI", color: "from-stone-100 to-white", iconColor: "text-stone-700" },
-    { id: "informes", title: "Informes", desc: "Generador semanal · mensual · cierre", icon: FileCheck, count: 18, sub: "informes generados", color: "from-rose-50 to-white", iconColor: "text-rose-700" },
-    { id: "riesgos", title: "Riesgos & Cambios", desc: "Registro de riesgos y solicitudes", icon: AlertTriangle, count: 7, sub: "abiertos", color: "from-violet-50 to-white", iconColor: "text-violet-700" },
-    { id: "procurement", title: "Procurement", desc: "Proveedores, contactos y forma de pago", icon: Truck, count: 68, sub: "proveedores", color: "from-teal-50 to-white", iconColor: "text-teal-700" }
+  const moneyPct = stats.total > 0 ? (stats.ent / stats.total) * 100 : 0;
+
+  /* Herramientas del proyecto agrupadas por dominio.
+     Las nuevas (edificación, RACI, bitácora, etc.) van marcadas con badge. */
+  const toolGroups = [
+    {
+      label: "Planeación financiera",
+      tools: [
+        { id: "capex-edif",  title: "CAPEX edificación",   desc: "10 capítulos · WBS construcción · 5 versiones", icon: DollarSign, sub: "vivienda", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
+        { id: "modelo-fin",  title: "Modelo financiero",   desc: "Proyecto · fiducia · inversionista · banco",     icon: TrendingUp, sub: "multi-versión", color: "from-indigo-50 to-white", iconColor: "text-indigo-700", neu: true },
+        { id: "evm-capex",   title: "EVM CAPEX/Cronograma", desc: "PV · EV · AC · CPI · SPI por WBS",              icon: Activity,   sub: "earned value", color: "from-amber-50 to-white", iconColor: "text-amber-700", neu: true },
+        { id: "pagos",       title: "Pagos a proveedores", desc: "Facturas y pagos · alimenta el AC del CAPEX",   icon: Truck,      sub: "registro de pagos", color: "from-teal-50 to-white", iconColor: "text-teal-700", neu: true }
+      ]
+    },
+    {
+      label: "Cronograma",
+      tools: [
+        { id: "cron-proyecto", title: "Cronograma de proyecto",     desc: "Hitos gerenciales (fiducia, licencias, escrituración)", icon: Calendar, sub: "vista gerencial", color: "from-sky-50 to-white",  iconColor: "text-sky-700", neu: true },
+        { id: "cronograma",    title: "Cronograma de construcción", desc: "Diagrama de Gantt · baseline vs real",                 icon: Hammer,   sub: "obra · WBS", color: "from-sky-50 to-white", iconColor: "text-sky-700" }
+      ]
+    },
+    {
+      label: "Gestión operativa",
+      tools: [
+        { id: "pendientes",   title: "Pendientes",       desc: "Seguimiento de actividades por responsable",         icon: ListChecks, sub: "lista · kanban", color: "from-rose-50 to-white",   iconColor: "text-rose-700",   neu: true },
+        { id: "reuniones",    title: "Reuniones",        desc: "Repositorio + grabación + extracción de actividades", icon: Users,     sub: "actas vivas",     color: "from-violet-50 to-white", iconColor: "text-violet-700", neu: true },
+        { id: "repo-docs",    title: "Documentos",       desc: "Repositorio por categoría (arq, técnico, legal…)",   icon: FileText,  sub: "9 categorías",    color: "from-stone-100 to-white", iconColor: "text-stone-700",  neu: true },
+        { id: "info-interes", title: "Información de interés", desc: "Diccionario de procedimientos (fiducia, banco, licencias)", icon: BookOpen,  sub: "knowledge base", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true }
+      ]
+    },
+    {
+      label: "Stakeholders y comunicación",
+      tools: [
+        { id: "stakeholders", title: "Stakeholders DB ★",     desc: "Base maestra: contactos, inversionistas, proveedores, PMI",  icon: Users,   sub: "fuente única",      color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
+        { id: "raci",         title: "Matriz RACI",           desc: "Roles, responsables y notificaciones por evento",            icon: Share2,  sub: "editable",          color: "from-rose-50 to-white",    iconColor: "text-rose-700",   neu: true },
+        { id: "bitacora",     title: "Bitácora inversionistas", desc: "Fotos · % avance · newsletter segmentado",                 icon: Image,   sub: "5 audiencias",      color: "from-indigo-50 to-white",  iconColor: "text-indigo-700", neu: true }
+      ]
+    },
+    {
+      label: "Cierre y reportería",
+      tools: [
+        { id: "informes",    title: "Informes",         desc: "Plantillas semanal · mensual · cierre", icon: FileCheck,     sub: "PMI",        color: "from-rose-50 to-white",   iconColor: "text-rose-700" },
+        { id: "documentos",  title: "Documentos PMI",   desc: "11 entregables del PMBOK",              icon: FileText,      sub: "estado vivo", color: "from-stone-100 to-white", iconColor: "text-stone-700" },
+        { id: "riesgos",     title: "Riesgos y cambios", desc: "Matriz 5×5 + control de cambios",     icon: AlertTriangle, sub: "registro",    color: "from-violet-50 to-white", iconColor: "text-violet-700" }
+      ]
+    },
+    {
+      label: "Legacy (restaurante)",
+      tools: [
+        { id: "capex",       title: "CAPEX restaurante", desc: "Items, proveedores (vista antigua)", icon: DollarSign, sub: `${items.length} items`, color: "from-stone-50 to-white", iconColor: "text-stone-600" },
+        { id: "evm",         title: "EVM (antiguo)",     desc: "CPI/SPI versión inicial",            icon: BarChart3,  sub: "v1",                 color: "from-stone-50 to-white", iconColor: "text-stone-600" },
+        { id: "procurement", title: "Procurement",       desc: "Listado de proveedores",             icon: Truck,      sub: "contactos",          color: "from-stone-50 to-white", iconColor: "text-stone-600" }
+      ]
+    }
   ];
 
   return (
@@ -694,16 +751,26 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
             <p className="mt-1 text-sm text-stone-500">{project.cliente} · {project.direccion}</p>
             <div className="mt-5 grid grid-cols-3 gap-4">
               <div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400">Área</div>
-                <div className="font-mono text-base tabular-nums text-stone-900">{project.area} m²</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400">Área construida</div>
+                <div className="font-mono text-base tabular-nums text-stone-900">{(project.area || 0).toLocaleString("es-CO")} m²</div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400">Puestos</div>
-                <div className="font-mono text-base tabular-nums text-stone-900">{project.puestos}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400">
+                  {project.tipoProyecto?.startsWith("edificio") ? "Apartamentos" : project.tipoProyecto === "restaurante" ? "Puestos" : "Unidades"}
+                </div>
+                <div className="font-mono text-base tabular-nums text-stone-900">{project.unidadesViv || project.unidades || project.puestos || 0}</div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400">Soft opening</div>
-                <div className="font-mono text-base tabular-nums text-stone-900">16 may 2026</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-stone-400">
+                  {project.tipoProyecto?.startsWith("edificio") ? "Entrega obra" : "Soft opening"}
+                </div>
+                <div className="font-mono text-base tabular-nums text-stone-900">
+                  {project.fechaEntregaObra
+                    ? new Date(project.fechaEntregaObra).toLocaleDateString("es-CO", { month: "short", year: "numeric" })
+                    : project.softOpening
+                      ? new Date(project.softOpening).toLocaleDateString("es-CO", { month: "short", year: "numeric" })
+                      : "—"}
+                </div>
               </div>
             </div>
           </div>
@@ -754,33 +821,40 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
       {/* TOOLS */}
       <SectionHeader
         title="Herramientas del proyecto"
-        subtitle="Cada herramienta abre una pantalla dedicada para gestionar ese aspecto."
+        subtitle="Todas las herramientas creadas para gestionar el proyecto. Las nuevas vienen marcadas con NUEVO."
         onInfo={() => onInfo("project-tools")}
       />
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {tools.map(t => {
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.id}
-              onClick={() => onTool(t.id)}
-              className={`group relative overflow-hidden rounded-xl border border-stone-200 bg-gradient-to-br ${t.color} p-5 text-left transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md`}
-            >
-              <div className="flex items-start justify-between">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg border border-stone-200 bg-white ${t.iconColor}`}>
-                  <Icon className="h-4 w-4" strokeWidth={1.7} />
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-stone-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-stone-700" />
-              </div>
-              <h3 className="mt-4 font-serif text-[19px] leading-tight tracking-tight text-stone-900">{t.title}</h3>
-              <p className="mt-1 text-xs text-stone-500">{t.desc}</p>
-              <div className="mt-3 flex items-baseline gap-1.5">
-                <span className="font-mono text-base tabular-nums text-stone-900">{t.count}</span>
-                <span className="text-[11px] text-stone-500">{t.sub}</span>
-              </div>
-            </button>
-          );
-        })}
+      <div className="space-y-6">
+        {toolGroups.map(group => (
+          <div key={group.label}>
+            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-stone-500">{group.label}</h3>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {group.tools.map(t => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onTool(t.id)}
+                    className={`group relative overflow-hidden rounded-xl border border-stone-200 bg-gradient-to-br ${t.color} p-4 text-left transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md`}
+                  >
+                    {t.neu && (
+                      <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-white">NUEVO</span>
+                    )}
+                    <div className="flex items-start justify-between">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-stone-200 bg-white ${t.iconColor}`}>
+                        <Icon className="h-4 w-4" strokeWidth={1.7} />
+                      </div>
+                      <ArrowUpRight className="h-4 w-4 text-stone-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-stone-700" />
+                    </div>
+                    <h4 className="mt-3 font-serif text-[16px] leading-tight tracking-tight text-stone-900">{t.title}</h4>
+                    <p className="mt-1 text-[11px] leading-snug text-stone-500">{t.desc}</p>
+                    {t.sub && <div className="mt-2 text-[10px] uppercase tracking-wider text-stone-400">{t.sub}</div>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* RECENT ACTIVITY */}
@@ -2734,17 +2808,13 @@ function CrettoApp() {
   const registerPendientesAdder = (fn) => { pendientesAdderRef.current = fn; };
   const addPendientes = (arr) => { if (pendientesAdderRef.current) pendientesAdderRef.current(arr); };
 
-  // Compute metrics for the active project from the live items state
-  const activeProject = useMemo(() => {
+  // Cosette 81 — archivado: datos históricos derivados de los items
+  const cosette81Archived = useMemo(() => {
     const total = items.reduce((s, i) => s + (i.total || 0), 0);
     const ent = items.filter(i => i.estado === "Entregado").reduce((s, i) => s + (i.total || 0), 0);
     const ped = items.filter(i => i.estado === "Pedido").reduce((s, i) => s + (i.total || 0), 0);
     const inicio = "2025-07-15";
     const fin = "2026-06-30";
-    const today = new Date("2026-04-27");
-    const totalDias = daysBetween(inicio, fin);
-    const elapsedDias = daysBetween(inicio, today.toISOString().slice(0, 10));
-    const avanceTiempo = Math.min(100, Math.round((elapsedDias / totalDias) * 100));
     return {
       id: "cosette-81",
       nombre: "Cosette 81",
@@ -2754,18 +2824,119 @@ function CrettoApp() {
       puestos: 110,
       capexTotal: total,
       capexEjecutado: ent + ped * 0.85,
-      avancePct: Math.round(((ent + ped * 0.5) / total) * 100),
-      avanceTiempo,
-      estado: "En obra",
+      avancePct: 100,
+      avanceTiempo: 100,
+      estado: "Cerrado",
       inicio,
       fin,
-      fase: "Pre-operativa",
+      fase: "Operación",
       color: "#1F3D2E",
       softOpening: "2026-05-16"
     };
   }, [items]);
 
-  const allProjects = useMemo(() => [activeProject, NEW_PROJECT_TEMPLATE, SECONDARY_PROJECT, ...userProjects], [activeProject, userProjects]);
+  // Casa 107 — edificio residencial · Casa Developers SAS
+  const activeProject = useMemo(() => ({
+    id: "casa-107",
+    nombre: "Casa 107",
+    tipoProyecto: "edificio_residencial",
+    tipologia: "vivienda",
+    estratoVis: "no-vis",
+    cliente: "Casa Developers SAS",
+    promotor: "Casa Developers SAS",
+    desarrollo: "Casa 107",
+    direccion: "Calle 107a # 11 - 28",
+    ciudad: "Bogotá",
+    usoSuelo: "",                 // [PENDIENTE: confirmar tratamiento POT]
+    loteM2: 1000,
+    area: 9483,                   // construida = vendible (5500) / 0.58
+    areaConstruida: 9483,
+    areaVendible: 5500,
+    areaComunesM2: 3983,          // 42% = zonas comunes (9483 - 5500)
+    pctVendibleConstruida: 58,    // ratio aplicado
+    unidades: 47,                 // apartamentos
+    unidadesViv: 47,
+    unidadesCom: 0,
+    parqueaderos: 0,              // [PENDIENTE: # de parqueaderos]
+    pisos: 10,
+    sotanos: 2,
+    puestos: 47,                  // legacy compat
+
+    // Equipo
+    pm: "Jose Guillermo Duque",
+    pmCretto: "Jose Guillermo Duque",
+    gerenteProyectoPromotor: "Hector Gaviria",
+    gerenteComercial: "Paola de Lima",
+    comercializadora: "Paola de Lima",
+    sponsors: [
+      "Hector Gaviria",
+      "Juan Diego Duque",
+      "Juan Felipe Gaviria",
+      "Alvaro Correa"
+    ],
+    sponsorContact: "",           // [PENDIENTE: email/tel del sponsor principal]
+    sponsor: "Hector Gaviria",
+    arquitectos: ["G Arquitectura", "MDV"],
+    arquitecto: "G Arquitectura",
+    diseñadorFachadas: "G Arquitectura",
+    paisajismo: "G Arquitectura",
+    ingenieroEstructural: "",     // [PENDIENTE]
+    ingenieroSuelos: "",          // [PENDIENTE]
+    ingenieroHidraulico: "",      // [PENDIENTE]
+    ingenieroElectrico: "",       // [PENDIENTE]
+    ingenieroGas: "",             // [PENDIENTE]
+    ingenieroBioclimatico: "",    // [PENDIENTE]
+    constructor: "Penta Ingenieros",
+    interventor: "Alvaro Andrade",
+    residenteObra: "",            // [PENDIENTE]
+    curaduria: "",                // [PENDIENTE]
+
+    // Estructura financiera
+    modeloContrato: "Administración delegada",
+    fiduciaria: "Alianza Fiduciaria",
+    patrimonioAutonomo: "",       // [PENDIENTE: nombre del P.A.]
+    bancoFinanciador: "Banco de Occidente",
+    cupoCreditoConstructor: 0,    // [PENDIENTE]
+    pctPreventas: 60,             // 60% de unidades preventas = punto de equilibrio
+    unidadesPuntoEquilibrio: 28,  // 60% de 47 ≈ 28 apartamentos
+    pctCuotaInicialPE: 40,        // 40% del valor del 60% en preventas debe estar recaudado como cuota inicial — CRÍTICO para condiciones de giro Alianza
+    recursosPropios: 0,           // [PENDIENTE]
+
+    // Fechas
+    fechaContrato: "",                          // [PENDIENTE: firma Cretto ↔ promotor]
+    fechaLicenciaEsperada: "2026-06-10",        // sale "la otra semana" (ref. 2026-06-03)
+    fechaPuntoEquilibrio: "",                   // [PENDIENTE]
+    fechaInicioObra: "2026-08-01",
+    fechaEntregaObra: "2028-02-01",             // ≈ 18 meses obra gris desde 1-ago-2026
+    fechaEscrituracionInicio: "",               // [PENDIENTE]
+    fechaEntregaCopropiedad: "",                // [PENDIENTE]
+    fechaCierre: "",                            // [PENDIENTE]
+
+    // Financiero
+    capexEstimado: 0,                // se calcula desde el módulo CAPEX edificación
+    capexTotal: 0,
+    capexEjecutado: 0,
+    contingenciaPct: 10,
+    honorariosCrettoPct: 0,          // 0.5% sobre VTV — fuera del CAPEX, no se suma aquí
+    honorariosCrettoNota: "0,5% VTV (Ventas Totales por Vender) — fuera del CAPEX",
+    precioVentaM2: 14500000,         // obra gris
+    precioVentaM2Acabados: 16500000, // acabados gestionados por el proyecto
+
+    // KPIs
+    avancePct: 0,
+    avanceTiempo: 0,
+    estado: "Planificación",
+    fase: "Licencias",               // licencia por salir
+    inicio: "2026-08-01",
+    fin: "2028-02-01",
+    color: "#2C5E3F"
+  }), []);
+
+  // SECONDARY_PROJECT (Cosette 109) ya tiene estado: "Cerrado" → va al final
+  const allProjects = useMemo(
+    () => [activeProject, ...userProjects, cosette81Archived, SECONDARY_PROJECT],
+    [activeProject, userProjects, cosette81Archived]
+  );
 
   const handleWizardSubmit = (form) => {
     const capex = parseFloat(form.capexEstimado) || 0;
@@ -2904,6 +3075,8 @@ function CrettoApp() {
     else if (tool === "capex-edif") navigateTo("capex-edif");
     else if (tool === "evm-capex") navigateTo("evm-capex");
     else if (tool === "pagos") navigateTo("pagos");
+    else if (tool === "info-interes") navigateTo("info-interes");
+    else if (tool === "stakeholders") navigateTo("stakeholders");
   };
 
   const handleCommand = (cmdId) => {
@@ -2911,9 +3084,10 @@ function CrettoApp() {
     setPaletteQuery("");
     switch (cmdId) {
       case "go-home": setScreen("home"); setHistory([]); break;
-      case "go-cosette81": handleProjectSelect(activeProject); break;
-      case "go-tomate": handleProjectSelect(NEW_PROJECT_TEMPLATE); break;
+      case "go-casa107": handleProjectSelect(activeProject); break;
+      case "go-cosette81": handleProjectSelect(cosette81Archived); break;
       case "go-cosette109": handleProjectSelect(SECONDARY_PROJECT); break;
+
       case "go-capex": setSelectedProject(activeProject); navigateTo("capex"); break;
       case "go-cronograma": setSelectedProject(activeProject); navigateTo("cronograma"); break;
       case "go-evm": setSelectedProject(activeProject); navigateTo("evm"); break;
@@ -2957,6 +3131,8 @@ function CrettoApp() {
     else if (screen === "evm-capex") crumbs.push({ label: "EVM CAPEX/Cronograma" });
     else if (screen === "pagos") crumbs.push({ label: "Pagos a proveedores" });
     else if (screen === "email-settings") crumbs.push({ label: "Configuración correo" });
+    else if (screen === "info-interes") crumbs.push({ label: "Información de interés" });
+    else if (screen === "stakeholders") crumbs.push({ label: "Base de stakeholders" });
     return crumbs;
   }, [screen, selectedProject]);
 
@@ -2974,6 +3150,8 @@ function CrettoApp() {
     else if (key === "capex-edif") { setSelectedProject(activeProject); navigateTo("capex-edif"); }
     else if (key === "evm-capex") { setSelectedProject(activeProject); navigateTo("evm-capex"); }
     else if (key === "pagos") { setSelectedProject(activeProject); navigateTo("pagos"); }
+    else if (key === "info-interes") { setSelectedProject(activeProject); navigateTo("info-interes"); }
+    else if (key === "stakeholders") { setSelectedProject(activeProject); navigateTo("stakeholders"); }
     else if (key === "email-settings") { navigateTo("email-settings"); }
     else if (key === "global-evm") { setSelectedProject(activeProject); navigateTo("evm"); }
   };
@@ -2985,6 +3163,7 @@ function CrettoApp() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900" style={{ fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
+      <FolderSetupBanner />
       <div>
         <TopBar
           onSearch={() => setPaletteOpen(true)}
@@ -3004,7 +3183,7 @@ function CrettoApp() {
           )}
           {screen === "project" && selectedProject && (
             <ProjectDetailScreen
-              project={selectedProject.id === "cosette-81" ? activeProject : selectedProject}
+              project={selectedProject.id === "cosette-81" ? cosette81Archived : selectedProject}
               items={selectedProject.id === "cosette-81" ? items : []}
               entregas={selectedProject.id === "cosette-81" ? entregas : []}
               onTool={handleTool}
@@ -3120,6 +3299,12 @@ function CrettoApp() {
               project={selectedProject || activeProject}
               onPagosChange={setPagos}
             />
+          )}
+          {screen === "info-interes" && (
+            <DiccionarioProcedimientos project={selectedProject || activeProject} />
+          )}
+          {screen === "stakeholders" && (
+            <StakeholdersDB project={selectedProject || activeProject} />
           )}
           {screen === "email-settings" && <EmailSettings />}
         </main>

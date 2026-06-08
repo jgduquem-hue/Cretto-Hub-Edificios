@@ -4,6 +4,7 @@ import {
   FileImage, FileSpreadsheet, FilePlus, Tag, Calendar, User, Plus, X
 } from "lucide-react";
 import RaciNotifyModal from "./RaciNotify.jsx";
+import { useResizableColumns, ResizableTh, ResetWidthsButton } from "./ResizableColumns.jsx";
 
 /* ────────────────────────────────────────────────────────────────
    Repositorio de Documentos — proyectos de edificación
@@ -103,6 +104,10 @@ const RepositorioDocumentos = ({ project, onInfo, raciData }) => {
     return { total, byCat };
   }, [docs]);
 
+  const cols = useResizableColumns("repo-docs.tabla", {
+    documento: 280, categoria: 160, version: 100, autor: 160, fecha: 110, estado: 100, acc: 100
+  });
+
   const handleUpload = (doc) => {
     const id = Math.max(0, ...docs.map(d => d.id)) + 1;
     const newDoc = { ...doc, id, fecha: doc.fecha || new Date().toISOString().slice(0, 10) };
@@ -167,17 +172,18 @@ const RepositorioDocumentos = ({ project, onInfo, raciData }) => {
       </div>
 
       {/* Tabla */}
-      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
-        <table className="w-full text-[13px]">
-          <thead className="bg-stone-50 text-[10px] uppercase tracking-wider text-stone-500">
+      <div className="mb-1 flex justify-end"><ResetWidthsButton onReset={cols.reset} /></div>
+      <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+        <table className="text-[13px]">
+          <thead className="bg-stone-50">
             <tr>
-              <th className="px-3 py-2 text-left">Documento</th>
-              <th className="px-3 py-2 text-left">Categoría</th>
-              <th className="px-3 py-2 text-left">Versión</th>
-              <th className="px-3 py-2 text-left">Autor</th>
-              <th className="px-3 py-2 text-left">Fecha</th>
-              <th className="px-3 py-2 text-left">Estado</th>
-              <th className="px-3 py-2 text-right">Acciones</th>
+              <ResizableTh w={cols.w("documento")} onResize={cols.r("documento")} className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Documento</ResizableTh>
+              <ResizableTh w={cols.w("categoria")} onResize={cols.r("categoria")} className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Categoría</ResizableTh>
+              <ResizableTh w={cols.w("version")} onResize={cols.r("version")} className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Versión</ResizableTh>
+              <ResizableTh w={cols.w("autor")} onResize={cols.r("autor")} className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Autor</ResizableTh>
+              <ResizableTh w={cols.w("fecha")} onResize={cols.r("fecha")} className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Fecha</ResizableTh>
+              <ResizableTh w={cols.w("estado")} onResize={cols.r("estado")} className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Estado</ResizableTh>
+              <ResizableTh w={cols.w("acc")} onResize={cols.r("acc")} align="right" className="border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500">Acciones</ResizableTh>
             </tr>
           </thead>
           <tbody>
@@ -188,14 +194,15 @@ const RepositorioDocumentos = ({ project, onInfo, raciData }) => {
               const cat = CATEGORIAS.find(c => c.id === d.categoria) || CATEGORIAS[0];
               const est = ESTADOS.find(e => e.id === d.estado) || ESTADOS[0];
               const Ic = cat.icon;
+              const tdBase = "px-3 py-2 overflow-hidden";
               return (
                 <tr key={d.id} className="border-t border-stone-100 hover:bg-stone-50/60">
-                  <td className="px-3 py-2">
+                  <td className={tdBase} style={cols.s("documento")}>
                     <div className="flex items-start gap-2">
                       <Ic className="mt-0.5 h-4 w-4 text-stone-400" />
-                      <div>
-                        <div className="font-medium text-stone-900">{d.nombre}</div>
-                        {d.notas && <div className="text-[11px] text-stone-500">{d.notas}</div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-stone-900 truncate">{d.nombre}</div>
+                        {d.notas && <div className="text-[11px] text-stone-500 truncate">{d.notas}</div>}
                         {(d.tags || []).length > 0 && (
                           <div className="mt-0.5 flex flex-wrap gap-1">
                             {d.tags.map((t, i) => <span key={i} className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-600">#{t}</span>)}
@@ -204,17 +211,17 @@ const RepositorioDocumentos = ({ project, onInfo, raciData }) => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className={tdBase} style={cols.s("categoria")}>
                     <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium ${COLOR_CLASS[cat.color]}`}>{cat.label}</span>
                     {d.sub && <div className="mt-0.5 text-[10px] text-stone-500">{d.sub}</div>}
                   </td>
-                  <td className="px-3 py-2 font-mono text-[12px]">{d.version}</td>
-                  <td className="px-3 py-2 text-stone-700">{d.autor}</td>
-                  <td className="px-3 py-2 text-stone-500">{d.fecha}</td>
-                  <td className="px-3 py-2">
+                  <td className={`${tdBase} font-mono text-[12px]`} style={cols.s("version")}>{d.version}</td>
+                  <td className={`${tdBase} text-stone-700`} style={cols.s("autor")}>{d.autor}</td>
+                  <td className={`${tdBase} text-stone-500`} style={cols.s("fecha")}>{d.fecha}</td>
+                  <td className={tdBase} style={cols.s("estado")}>
                     <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium ${COLOR_CLASS[est.color]}`}>{est.label}</span>
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className={`${tdBase} text-right`} style={cols.s("acc")}>
                     <div className="inline-flex gap-1">
                       <button className="rounded p-1 text-stone-500 hover:bg-stone-100" title="Ver"><Eye className="h-3.5 w-3.5" /></button>
                       <button className="rounded p-1 text-stone-500 hover:bg-stone-100" title="Descargar"><Download className="h-3.5 w-3.5" /></button>

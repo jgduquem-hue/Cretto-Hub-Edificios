@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Plus, Trash2, X, Upload, Search, Filter, CheckCircle2, Clock, AlertCircle, ArrowRight } from "lucide-react";
+import { useResizableColumns, ResizableTh, ResetWidthsButton } from "./ResizableColumns.jsx";
 
 /* ────────────────────────────────────────────────────────────────
    Pagos a proveedores — registro auxiliar enlazado al CAPEX por WBS
@@ -177,46 +178,7 @@ const PagosProveedores = ({ project, onPagosChange }) => {
       </div>
 
       {/* Tabla */}
-      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
-        <table className="w-full text-[12px]">
-          <thead className="bg-stone-50 text-[10px] uppercase tracking-wider text-stone-500">
-            <tr>
-              <th className="px-3 py-2 text-left">Fecha</th>
-              <th className="px-3 py-2 text-left">Proveedor</th>
-              <th className="px-3 py-2 text-left">Descripción</th>
-              <th className="px-3 py-2 text-left">WBS</th>
-              <th className="px-3 py-2 text-right">Monto</th>
-              <th className="px-3 py-2 text-left">Estado</th>
-              <th className="px-3 py-2 text-left">Soporte</th>
-              <th className="w-10"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-stone-400">Sin pagos para los filtros aplicados.</td></tr>}
-            {filtered.map(p => {
-              const est = ESTADOS.find(e => e.id === p.estado) || ESTADOS[0];
-              return (
-                <tr key={p.id} className="border-t border-stone-100 hover:bg-stone-50/60">
-                  <td className="px-3 py-1.5 font-mono text-[11px] text-stone-600">{p.fecha}</td>
-                  <td className="px-3 py-1.5"><button onClick={() => setModal(p)} className="text-left font-medium text-stone-900">{p.proveedor}</button></td>
-                  <td className="px-3 py-1.5 text-stone-700">{p.descripcion}</td>
-                  <td className="px-3 py-1.5">
-                    {p.wbs
-                      ? <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-800">{p.wbs}</span>
-                      : <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800" title="Sin WBS no se cuenta como AC">Sin WBS</span>}
-                  </td>
-                  <td className="px-3 py-1.5 text-right font-mono">{fmtCop(p.monto)}</td>
-                  <td className="px-3 py-1.5"><span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold ${COLOR_CLASS[est.color]}`}>{est.label}</span></td>
-                  <td className="px-3 py-1.5 text-[11px] text-stone-500">{p.soporte ? <>📎 {p.soporte}</> : "—"}</td>
-                  <td className="px-3 py-1.5 text-right">
-                    <button onClick={() => { if (confirm("¿Eliminar pago?")) setPagos(prev => prev.filter(x => x.id !== p.id)); }} className="rounded p-0.5 text-stone-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3 w-3" /></button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <PagosTable rows={filtered} onEdit={setModal} onDelete={(id) => setPagos(prev => prev.filter(x => x.id !== id))} />
 
       {/* Rollup AC por WBS */}
       <div className="mt-4 rounded-lg border border-stone-200 bg-white p-3">
@@ -233,6 +195,59 @@ const PagosProveedores = ({ project, onPagosChange }) => {
 
       {modal !== null && <PagoModal initial={modal.id ? modal : null} onClose={() => setModal(null)} onSave={upsert} />}
     </div>
+  );
+};
+
+const PagosTable = ({ rows, onEdit, onDelete }) => {
+  const cols = useResizableColumns("pagos.lista", {
+    fecha: 100, proveedor: 180, descripcion: 260, wbs: 90, monto: 110, estado: 100, soporte: 180, acc: 50
+  });
+  const th = "border-b border-stone-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500";
+  return (
+    <>
+      <div className="mb-1 flex justify-end"><ResetWidthsButton onReset={cols.reset} /></div>
+      <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+        <table className="text-[12px]">
+          <thead className="bg-stone-50">
+            <tr>
+              <ResizableTh w={cols.w("fecha")} onResize={cols.r("fecha")} className={th}>Fecha</ResizableTh>
+              <ResizableTh w={cols.w("proveedor")} onResize={cols.r("proveedor")} className={th}>Proveedor</ResizableTh>
+              <ResizableTh w={cols.w("descripcion")} onResize={cols.r("descripcion")} className={th}>Descripción</ResizableTh>
+              <ResizableTh w={cols.w("wbs")} onResize={cols.r("wbs")} className={th}>WBS</ResizableTh>
+              <ResizableTh w={cols.w("monto")} onResize={cols.r("monto")} align="right" className={th}>Monto</ResizableTh>
+              <ResizableTh w={cols.w("estado")} onResize={cols.r("estado")} className={th}>Estado</ResizableTh>
+              <ResizableTh w={cols.w("soporte")} onResize={cols.r("soporte")} className={th}>Soporte</ResizableTh>
+              <ResizableTh w={cols.w("acc")} onResize={cols.r("acc")} align="center" className={th}></ResizableTh>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-stone-400">Sin pagos para los filtros aplicados.</td></tr>}
+            {rows.map(p => {
+              const est = ESTADOS.find(e => e.id === p.estado) || ESTADOS[0];
+              const tdBase = "px-3 py-1.5 overflow-hidden";
+              return (
+                <tr key={p.id} className="border-t border-stone-100 hover:bg-stone-50/60">
+                  <td className={`${tdBase} font-mono text-[11px] text-stone-600`} style={cols.s("fecha")}>{p.fecha}</td>
+                  <td className={tdBase} style={cols.s("proveedor")}><button onClick={() => onEdit(p)} className="text-left font-medium text-stone-900">{p.proveedor}</button></td>
+                  <td className={`${tdBase} text-stone-700`} style={cols.s("descripcion")}>{p.descripcion}</td>
+                  <td className={tdBase} style={cols.s("wbs")}>
+                    {p.wbs
+                      ? <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-800">{p.wbs}</span>
+                      : <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800" title="Sin WBS no se cuenta como AC">Sin WBS</span>}
+                  </td>
+                  <td className={`${tdBase} text-right font-mono`} style={cols.s("monto")}>{fmtCop(p.monto)}</td>
+                  <td className={tdBase} style={cols.s("estado")}><span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold ${COLOR_CLASS[est.color]}`}>{est.label}</span></td>
+                  <td className={`${tdBase} text-[11px] text-stone-500`} style={cols.s("soporte")}>{p.soporte ? <>📎 {p.soporte}</> : "—"}</td>
+                  <td className={`${tdBase} text-right`} style={cols.s("acc")}>
+                    <button onClick={() => { if (confirm("¿Eliminar pago?")) onDelete(p.id); }} className="rounded p-0.5 text-stone-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3 w-3" /></button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 };
 

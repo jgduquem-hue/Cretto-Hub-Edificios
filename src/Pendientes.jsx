@@ -3,6 +3,7 @@ import {
   CheckCircle2, Circle, AlertCircle, Plus, Trash2, Search, Filter,
   Calendar, User, ArrowUpCircle, Flag, X, Clock, Tag
 } from "lucide-react";
+import { useResizableColumns, ResizableTh, ResetWidthsButton } from "./ResizableColumns.jsx";
 
 /* ────────────────────────────────────────────────────────────────
    Módulo de Pendientes — seguimiento de actividades
@@ -230,19 +231,26 @@ const EstadoPill = ({ e }) => {
   return <span className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-semibold ${COLOR_CLASS[cfg.color]}`}>{cfg.label}</span>;
 };
 
-const ListaView = ({ items, today, onEdit, onToggle, onDelete }) => (
-  <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
-    <table className="w-full text-[13px]">
-      <thead className="bg-stone-50 text-[10px] uppercase tracking-wider text-stone-500">
+const ListaView = ({ items, today, onEdit, onToggle, onDelete }) => {
+  const cols = useResizableColumns("pendientes.lista", {
+    check: 40, actividad: 320, responsable: 150, categoria: 110, prioridad: 90, estado: 110, fecha: 100, acc: 60
+  });
+  const thBase = "border-b border-stone-200 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-500";
+  return (
+  <>
+  <div className="mb-1 flex justify-end"><ResetWidthsButton onReset={cols.reset} /></div>
+  <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+    <table className="text-[13px]">
+      <thead className="bg-stone-50">
         <tr>
-          <th className="w-8 px-3 py-2"></th>
-          <th className="px-3 py-2 text-left">Actividad</th>
-          <th className="px-3 py-2 text-left">Responsable</th>
-          <th className="px-3 py-2 text-left">Categoría</th>
-          <th className="px-3 py-2 text-left">Prioridad</th>
-          <th className="px-3 py-2 text-left">Estado</th>
-          <th className="px-3 py-2 text-left">Fecha</th>
-          <th className="px-3 py-2 text-right">Acciones</th>
+          <ResizableTh w={cols.w("check")} onResize={cols.r("check")} className={thBase}></ResizableTh>
+          <ResizableTh w={cols.w("actividad")} onResize={cols.r("actividad")} className={thBase}>Actividad</ResizableTh>
+          <ResizableTh w={cols.w("responsable")} onResize={cols.r("responsable")} className={thBase}>Responsable</ResizableTh>
+          <ResizableTh w={cols.w("categoria")} onResize={cols.r("categoria")} className={thBase}>Categoría</ResizableTh>
+          <ResizableTh w={cols.w("prioridad")} onResize={cols.r("prioridad")} className={thBase}>Prioridad</ResizableTh>
+          <ResizableTh w={cols.w("estado")} onResize={cols.r("estado")} className={thBase}>Estado</ResizableTh>
+          <ResizableTh w={cols.w("fecha")} onResize={cols.r("fecha")} className={thBase}>Fecha</ResizableTh>
+          <ResizableTh w={cols.w("acc")} onResize={cols.r("acc")} align="right" className={thBase}>Acc.</ResizableTh>
         </tr>
       </thead>
       <tbody>
@@ -251,28 +259,29 @@ const ListaView = ({ items, today, onEdit, onToggle, onDelete }) => (
         )}
         {items.map(i => {
           const vencido = i.estado !== "completado" && i.fecha < today;
+          const tdBase = "px-3 py-2 overflow-hidden";
           return (
             <tr key={i.id} className={`border-t border-stone-100 hover:bg-stone-50/60 ${vencido ? "bg-rose-50/30" : ""}`}>
-              <td className="px-3 py-2">
+              <td className={tdBase} style={cols.s("check")}>
                 <button onClick={() => onToggle(i)} title="Marcar completado">
                   {i.estado === "completado" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Circle className="h-4 w-4 text-stone-300" />}
                 </button>
               </td>
-              <td className="px-3 py-2">
-                <button onClick={() => onEdit(i)} className="text-left">
+              <td className={tdBase} style={cols.s("actividad")}>
+                <button onClick={() => onEdit(i)} className="block w-full text-left">
                   <div className={`font-medium ${i.estado === "completado" ? "text-stone-400 line-through" : "text-stone-900"}`}>{i.descripcion}</div>
                   {i.origen && <div className="text-[10px] text-stone-400">{i.origen}</div>}
                 </button>
               </td>
-              <td className="px-3 py-2 text-stone-700">{i.responsable}</td>
-              <td className="px-3 py-2"><span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-600">{i.categoria}</span></td>
-              <td className="px-3 py-2"><PrioPill p={i.prioridad} /></td>
-              <td className="px-3 py-2"><EstadoPill e={i.estado} /></td>
-              <td className={`px-3 py-2 text-[12px] ${vencido ? "font-semibold text-rose-700" : "text-stone-500"}`}>
+              <td className={`${tdBase} text-stone-700`} style={cols.s("responsable")}>{i.responsable}</td>
+              <td className={tdBase} style={cols.s("categoria")}><span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-600">{i.categoria}</span></td>
+              <td className={tdBase} style={cols.s("prioridad")}><PrioPill p={i.prioridad} /></td>
+              <td className={tdBase} style={cols.s("estado")}><EstadoPill e={i.estado} /></td>
+              <td className={`${tdBase} text-[12px] ${vencido ? "font-semibold text-rose-700" : "text-stone-500"}`} style={cols.s("fecha")}>
                 {vencido && <AlertCircle className="mr-0.5 inline h-3 w-3" />}
                 {i.fecha}
               </td>
-              <td className="px-3 py-2 text-right">
+              <td className={`${tdBase} text-right`} style={cols.s("acc")}>
                 <button onClick={() => onDelete(i.id)} className="rounded p-1 text-stone-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
               </td>
             </tr>
@@ -281,7 +290,9 @@ const ListaView = ({ items, today, onEdit, onToggle, onDelete }) => (
       </tbody>
     </table>
   </div>
-);
+  </>
+  );
+};
 
 const KanbanView = ({ items, onEdit, onMove }) => (
   <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
