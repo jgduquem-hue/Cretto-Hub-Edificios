@@ -8,7 +8,7 @@ import {
   Download, Sparkles, ArrowUpRight, MoreHorizontal, Tag,
   MapPin, Users, Building2, Hammer, ChefHat, Lightbulb,
   Sofa, Utensils, Wind, Flame, Trees, Pen, Briefcase,
-  Share2, CheckCircle2, BookOpen
+  Share2, CheckCircle2, BookOpen, Wallet
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -29,6 +29,7 @@ import ModeloFinanciero from "./ModeloFinanciero.jsx";
 import CapexEdificios from "./CapexEdificios.jsx";
 import EvmCapexCronograma from "./EvmCapexCronograma.jsx";
 import PagosProveedores, { acByWbs } from "./PagosProveedores.jsx";
+import Tesoreria from "./Tesoreria.jsx";
 import EmailSettings from "./EmailSettings.jsx";
 import DiccionarioProcedimientos from "./DiccionarioProcedimientos.jsx";
 import StakeholdersDB from "./StakeholdersDB.jsx";
@@ -455,6 +456,7 @@ const Sidebar = ({ screen, onNav }) => {
     { id: "capex-edif", icon: DollarSign, label: "CAPEX edificios" },
     { id: "evm-capex", icon: Activity, label: "EVM CAPEX/Cronograma" },
     { id: "pagos", icon: Truck, label: "Pagos a proveedores" },
+    { id: "tesoreria", icon: Wallet, label: "Tesorería (CFO)" },
     { id: "info-interes", icon: BookOpen, label: "Información de interés" },
     { id: "stakeholders", icon: Users, label: "Stakeholders DB" },
     { id: "global-evm", icon: BarChart3, label: "Métricas" },
@@ -747,7 +749,8 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
         { id: "capex-edif",  title: "CAPEX edificación",   desc: "10 capítulos · WBS construcción · 5 versiones", icon: DollarSign, sub: "vivienda", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
         { id: "modelo-fin",  title: "Modelo financiero",   desc: "Proyecto · fiducia · inversionista · banco",     icon: TrendingUp, sub: "multi-versión", color: "from-indigo-50 to-white", iconColor: "text-indigo-700", neu: true },
         { id: "evm-capex",   title: "EVM CAPEX/Cronograma", desc: "PV · EV · AC · CPI · SPI por WBS",              icon: Activity,   sub: "earned value", color: "from-amber-50 to-white", iconColor: "text-amber-700", neu: true },
-        { id: "pagos",       title: "Pagos a proveedores", desc: "Facturas y pagos · alimenta el AC del CAPEX",   icon: Truck,      sub: "registro de pagos", color: "from-teal-50 to-white", iconColor: "text-teal-700", neu: true }
+        { id: "pagos",       title: "Pagos a proveedores", desc: "Facturas y pagos · alimenta el AC del CAPEX",   icon: Truck,      sub: "registro de pagos", color: "from-teal-50 to-white", iconColor: "text-teal-700", neu: true },
+        { id: "tesoreria",   title: "Tesorería (CFO) ★",   desc: "Matriz hitos↔caja · liquidez · stress tests · crédito constructor", icon: Wallet, sub: "dashboard CFO Cretto", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true }
       ]
     },
     {
@@ -3134,6 +3137,7 @@ function CrettoApp() {
     else if (tool === "capex-edif") navigateTo("capex-edif");
     else if (tool === "evm-capex") navigateTo("evm-capex");
     else if (tool === "pagos") navigateTo("pagos");
+    else if (tool === "tesoreria") navigateTo("tesoreria");
     else if (tool === "info-interes") navigateTo("info-interes");
     else if (tool === "stakeholders") navigateTo("stakeholders");
   };
@@ -3189,6 +3193,7 @@ function CrettoApp() {
     else if (screen === "capex-edif") crumbs.push({ label: "CAPEX edificación" });
     else if (screen === "evm-capex") crumbs.push({ label: "EVM CAPEX/Cronograma" });
     else if (screen === "pagos") crumbs.push({ label: "Pagos a proveedores" });
+    else if (screen === "tesoreria") crumbs.push({ label: "Tesorería (CFO)" });
     else if (screen === "email-settings") crumbs.push({ label: "Configuración correo" });
     else if (screen === "info-interes") crumbs.push({ label: "Información de interés" });
     else if (screen === "stakeholders") crumbs.push({ label: "Base de stakeholders" });
@@ -3209,6 +3214,7 @@ function CrettoApp() {
     else if (key === "capex-edif") { setSelectedProject(activeProject); navigateTo("capex-edif"); }
     else if (key === "evm-capex") { setSelectedProject(activeProject); navigateTo("evm-capex"); }
     else if (key === "pagos") { setSelectedProject(activeProject); navigateTo("pagos"); }
+    else if (key === "tesoreria") { setSelectedProject(activeProject); navigateTo("tesoreria"); }
     else if (key === "info-interes") { setSelectedProject(activeProject); navigateTo("info-interes"); }
     else if (key === "stakeholders") { setSelectedProject(activeProject); navigateTo("stakeholders"); }
     else if (key === "email-settings") { navigateTo("email-settings"); }
@@ -3322,6 +3328,19 @@ function CrettoApp() {
             <Pendientes
               project={selectedProject || activeProject}
               registerAdder={registerPendientesAdder}
+              stakeholders={stakeholders}
+              onAddStakeholders={(nuevos) => {
+                /* Agrega varios stakeholders nuevos a la DB con auto-ID */
+                setStakeholders(prev => {
+                  const baseId = Math.max(0, ...prev.map(s => s.id)) + 1;
+                  const conIds = nuevos.map((n, idx) => ({ ...n, id: baseId + idx, fechaCreacion: new Date().toISOString() }));
+                  const proj = (selectedProject?.id) || "default";
+                  /* Persistir directo en storage también para que la DB lo vea */
+                  const all = [...prev, ...conIds];
+                  window.storage.set(`crettohub:stakeholders:${proj}`, JSON.stringify(all)).catch(() => {});
+                  return all;
+                });
+              }}
             />
           )}
           {screen === "raci" && (
@@ -3367,6 +3386,14 @@ function CrettoApp() {
               onPagosChange={setPagos}
               stakeholders={stakeholders}
               onEditStakeholder={(id) => { setStakeholderFocoId(id); navigateTo("stakeholders"); }}
+            />
+          )}
+          {screen === "tesoreria" && (
+            <Tesoreria
+              project={selectedProject || activeProject}
+              partidas={capexPartidas}
+              tareas={tareas}
+              pagos={pagos}
             />
           )}
           {screen === "info-interes" && (
