@@ -5,6 +5,7 @@ import {
   Download, Trash2, Search
 } from "lucide-react";
 import RaciNotifyModal from "./RaciNotify.jsx";
+import StakeholderPicker from "./StakeholderPicker.jsx";
 
 /* ────────────────────────────────────────────────────────────────
    Repositorio de Reuniones
@@ -48,7 +49,7 @@ const SEED_REUNIONES = [
   }
 ];
 
-const Reuniones = ({ project, onAddPendientes, raciData }) => {
+const Reuniones = ({ project, onAddPendientes, raciData, stakeholders = [], onEditStakeholder }) => {
   const [reuniones, setReuniones] = useState(SEED_REUNIONES);
   const [filtroTipo, setFiltroTipo] = useState("all");
   const [query, setQuery] = useState("");
@@ -196,7 +197,7 @@ const Reuniones = ({ project, onAddPendientes, raciData }) => {
         })}
       </div>
 
-      {modalOpen && <ReunionModal initial={editing} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={handleSave} />}
+      {modalOpen && <ReunionModal initial={editing} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={handleSave} stakeholders={stakeholders} onEditStakeholder={onEditStakeholder} />}
       <RaciNotifyModal open={!!raciPayload} payload={raciPayload} raciData={raciData} onClose={() => setRaciPayload(null)} />
     </div>
   );
@@ -209,7 +210,7 @@ const CatChip = ({ label, active, onClick, color }) => (
 );
 
 /* ─── Modal: crear/editar reunión + grabación ─── */
-const ReunionModal = ({ initial, onClose, onSave }) => {
+const ReunionModal = ({ initial, onClose, onSave, stakeholders = [], onEditStakeholder }) => {
   const [form, setForm] = useState(initial || {
     tipo: "comite-semanal", fecha: new Date().toISOString().slice(0, 10),
     titulo: "", duracionMin: "", asistentes: [], resumen: "", actividades: [],
@@ -331,8 +332,28 @@ const ReunionModal = ({ initial, onClose, onSave }) => {
                 <Field label="Fecha"><input type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} className="inp" /></Field>
               </div>
               <Field label="Título"><input value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} className="inp" placeholder="Ej. Comité semanal #19" /></Field>
-              <Field label="Asistentes (separados por coma)">
-                <input value={(form.asistentes || []).join(", ")} onChange={e => setForm({ ...form, asistentes: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} className="inp" placeholder="Jose Duque, Sponsor, Constructor…" />
+              <Field label={`Asistentes (${(form.asistentes || []).length})`}>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap gap-1">
+                    {(form.asistentes || []).map((a, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] text-emerald-800">
+                        {a}
+                        <button onClick={() => setForm({ ...form, asistentes: form.asistentes.filter((_, idx) => idx !== i) })} className="text-emerald-600 hover:text-rose-600">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <StakeholderPicker
+                    value=""
+                    onChange={(text) => {
+                      if (text && !form.asistentes.includes(text)) {
+                        setForm({ ...form, asistentes: [...(form.asistentes || []), text] });
+                      }
+                    }}
+                    stakeholders={stakeholders}
+                    onEditStakeholder={onEditStakeholder}
+                    placeholder="+ Agregar asistente (buscar en DB o escribir nombre)"
+                  />
+                </div>
               </Field>
               <Field label="Resumen / temas tratados">
                 <textarea value={form.resumen} onChange={e => setForm({ ...form, resumen: e.target.value })} rows={4} className="inp" placeholder="Avance, decisiones, riesgos, asuntos del cliente…" />

@@ -276,7 +276,7 @@ const COMMANDS = [
   { id: "cron-proy", label: "Cronograma de proyecto", desc: "Hitos gerenciales (licencias, preventas, fiducia, escrituración)", action: "navigate", target: "cron-proyecto", icon: Calendar, group: "Proyecto activo" },
   { id: "repo-docs", label: "Repositorio de documentos", desc: "Arquitectura, técnicos, legales, licencias, comerciales, fiduciaria", action: "navigate", target: "repo-docs", icon: FileText, group: "Proyecto activo" },
   { id: "reuniones", label: "Reuniones", desc: "Grabar reuniones y extraer actividades", action: "navigate", target: "reuniones", icon: Users, group: "Proyecto activo" },
-  { id: "pendientes", label: "Pendientes", desc: "Seguimiento de actividades", action: "navigate", target: "pendientes", icon: ListChecks, group: "Proyecto activo" },
+  { id: "pendientes", label: "Seguimiento de actividades", desc: "Tareas con sub-tareas, kanban y bitácora", action: "navigate", target: "pendientes", icon: ListChecks, group: "Proyecto activo" },
   { id: "raci", label: "Matriz RACI", desc: "Editar responsabilidades y notificaciones", action: "navigate", target: "raci", icon: Share2, group: "Proyecto activo" },
   { id: "bitacora", label: "Bitácora inversionistas", desc: "Fotos de avance, % y newsletter semanal", action: "navigate", target: "bitacora", icon: Image, group: "Proyecto activo" },
   { id: "modelo-fin", label: "Modelo financiero", desc: "Proyecto, fiducia, inversionista", action: "navigate", target: "modelo-fin", icon: TrendingUp, group: "Proyecto activo" },
@@ -448,7 +448,7 @@ const Sidebar = ({ screen, onNav }) => {
     { id: "cron-construccion", icon: Hammer, label: "Cronograma construcción" },
     { id: "repo-docs", icon: FileText, label: "Documentos" },
     { id: "reuniones", icon: Users, label: "Reuniones" },
-    { id: "pendientes", icon: ListChecks, label: "Pendientes" },
+    { id: "pendientes", icon: ListChecks, label: "Seguimiento de actividades" },
     { id: "raci", icon: Share2, label: "Matriz RACI" },
     { id: "bitacora", icon: Image, label: "Bitácora inversionistas" },
     { id: "modelo-fin", icon: TrendingUp, label: "Modelo financiero" },
@@ -495,9 +495,40 @@ const Sidebar = ({ screen, onNav }) => {
 /* ───────────────────────── HOME SCREEN ───────────────────────── */
 
 const ProjectCard = ({ project, onClick }) => {
-  const moneyPct = (project.capexEjecutado / project.capexTotal) * 100;
-  const timePct = project.avanceTiempo;
-  const variance = timePct - moneyPct;
+  const esEdificio = project.tipoProyecto?.startsWith("edificio") || project.tipologia === "vivienda" || project.tipologia === "mixto" || project.tipologia === "oficinas";
+  const esRestaurante = project.tipoProyecto === "restaurante" || (!esEdificio && project.puestos > 0);
+
+  const capexTotal = project.capexTotal || 0;
+  const capexEjec = project.capexEjecutado || 0;
+  const moneyPct = capexTotal > 0 ? (capexEjec / capexTotal) * 100 : null;
+  const timePct = project.avanceTiempo || 0;
+  const variance = moneyPct == null ? 0 : (timePct - moneyPct);
+
+  /* KPIs adaptados por tipo de proyecto */
+  const kpis = esEdificio
+    ? [
+        { label: "Apartamentos", val: project.unidadesViv || project.unidades || 0, mono: true },
+        { label: "Pisos / sótanos", val: `${project.pisos || 0} / ${project.sotanos || 0}`, mono: true },
+        { label: "Área constr.", val: `${(project.area || project.areaConstruida || 0).toLocaleString("es-CO")} m²`, mono: true }
+      ]
+    : esRestaurante
+      ? [
+          { label: "Área", val: `${project.area || 0} m²`, mono: true },
+          { label: "Puestos", val: project.puestos || 0, mono: true },
+          { label: "CAPEX", val: fmtCOPshort(capexTotal), mono: true }
+        ]
+      : [
+          { label: "Área", val: `${project.area || 0} m²`, mono: true },
+          { label: "Unidades", val: project.unidades || project.puestos || 0, mono: true },
+          { label: "CAPEX", val: fmtCOPshort(capexTotal), mono: true }
+        ];
+
+  /* Segunda fila: solo para edificios — info financiera y de fiducia */
+  const kpisRow2 = esEdificio ? [
+    { label: "CAPEX estimado", val: capexTotal > 0 ? fmtCOPshort(capexTotal) : "—", mono: true },
+    { label: "Preventas req.", val: project.pctPreventas ? `${project.pctPreventas}%` : "—", mono: true },
+    { label: "Fiduciaria", val: project.fiduciaria || "—", mono: false }
+  ] : null;
 
   return (
     <Card hover onClick={onClick} className="overflow-hidden">
@@ -512,11 +543,11 @@ const ProjectCard = ({ project, onClick }) => {
               <h3 className="font-serif text-[19px] leading-tight tracking-tight text-stone-900">
                 {project.nombre}
               </h3>
-              <Pill tone={project.estado === "Cerrado" ? "default" : project.estado === "Definición" ? "blue" : "green"}>
+              <Pill tone={project.estado === "Cerrado" ? "default" : project.estado === "Planificación" || project.estado === "Definición" ? "blue" : "green"}>
                 {project.estado}
               </Pill>
             </div>
-            <p className="mt-1 text-xs text-stone-500">{project.cliente} · {project.direccion}</p>
+            <p className="mt-1 text-xs text-stone-500">{project.cliente || project.promotor} · {project.direccion}</p>
           </div>
           <button className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700" onClick={(e) => e.stopPropagation()}>
             <MoreHorizontal className="h-4 w-4" />
@@ -524,51 +555,71 @@ const ProjectCard = ({ project, onClick }) => {
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-3 border-y border-stone-100 py-3">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-stone-400">Área</div>
-            <div className="mt-0.5 font-mono text-sm tabular-nums text-stone-900">{project.area} m²</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-stone-400">Puestos</div>
-            <div className="mt-0.5 font-mono text-sm tabular-nums text-stone-900">{project.puestos}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-stone-400">CAPEX</div>
-            <div className="mt-0.5 font-mono text-sm tabular-nums text-stone-900">{fmtCOPshort(project.capexTotal)}</div>
-          </div>
+          {kpis.map((k, i) => (
+            <div key={i}>
+              <div className="text-[10px] uppercase tracking-wider text-stone-400">{k.label}</div>
+              <div className={`mt-0.5 ${k.mono ? "font-mono text-sm tabular-nums" : "text-sm"} text-stone-900 truncate`}>{k.val}</div>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-4 space-y-3">
-          <div>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="text-stone-500">Avance financiero</span>
-              <span className="font-mono tabular-nums text-stone-900">{moneyPct.toFixed(1)}%</span>
-            </div>
-            <ProgressBar value={moneyPct} color="emerald" />
-            <div className="mt-1 font-mono text-[11px] tabular-nums text-stone-500">
-              {fmtCOPshort(project.capexEjecutado)} / {fmtCOPshort(project.capexTotal)}
-            </div>
+        {kpisRow2 && (
+          <div className="grid grid-cols-3 gap-3 border-b border-stone-100 py-3">
+            {kpisRow2.map((k, i) => (
+              <div key={i}>
+                <div className="text-[10px] uppercase tracking-wider text-stone-400">{k.label}</div>
+                <div className={`mt-0.5 ${k.mono ? "font-mono text-sm tabular-nums" : "text-xs"} text-stone-900 truncate`} title={k.val}>{k.val}</div>
+              </div>
+            ))}
           </div>
+        )}
+
+        <div className="mt-4 space-y-3">
+          {capexTotal > 0 && (
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="text-stone-500">Avance financiero</span>
+                <span className="font-mono tabular-nums text-stone-900">{moneyPct.toFixed(1)}%</span>
+              </div>
+              <ProgressBar value={moneyPct} color="emerald" />
+              <div className="mt-1 font-mono text-[11px] tabular-nums text-stone-500">
+                {fmtCOPshort(capexEjec)} / {fmtCOPshort(capexTotal)}
+              </div>
+            </div>
+          )}
+          {esEdificio && project.unidadesPuntoEquilibrio > 0 && (
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="text-stone-500">Preventas para punto de equilibrio</span>
+                <span className="font-mono tabular-nums text-stone-900">0 / {project.unidadesPuntoEquilibrio} apt</span>
+              </div>
+              <ProgressBar value={0} color="violet" />
+            </div>
+          )}
           <div>
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className="text-stone-500">Avance en tiempo</span>
               <span className="font-mono tabular-nums text-stone-900">{timePct}%</span>
             </div>
             <ProgressBar value={timePct} color={Math.abs(variance) > 10 ? "amber" : "stone"} />
-            <div className="mt-1 flex items-center gap-1 text-[11px] text-stone-500">
-              {variance > 5 ? (
-                <><TrendingUp className="h-3 w-3 text-amber-600" /> <span className="text-amber-700">Tiempo adelantado a presupuesto ({variance.toFixed(0)}pts)</span></>
-              ) : variance < -5 ? (
-                <><TrendingDown className="h-3 w-3 text-rose-600" /> <span className="text-rose-700">Atraso de tiempo vs ejecución ({variance.toFixed(0)}pts)</span></>
-              ) : (
-                <><Activity className="h-3 w-3" /> <span>En línea con presupuesto</span></>
-              )}
-            </div>
+            {capexTotal > 0 && (
+              <div className="mt-1 flex items-center gap-1 text-[11px] text-stone-500">
+                {variance > 5 ? (
+                  <><TrendingUp className="h-3 w-3 text-amber-600" /> <span className="text-amber-700">Tiempo adelantado a presupuesto ({variance.toFixed(0)}pts)</span></>
+                ) : variance < -5 ? (
+                  <><TrendingDown className="h-3 w-3 text-rose-600" /> <span className="text-rose-700">Atraso de tiempo vs ejecución ({variance.toFixed(0)}pts)</span></>
+                ) : (
+                  <><Activity className="h-3 w-3" /> <span>En línea con presupuesto</span></>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="mt-4 flex items-center justify-between text-[11px] text-stone-400">
-          <span>{dateStr(project.inicio)} → {dateStr(project.fin)}</span>
+          <span>
+            {esEdificio ? "Obra: " : ""}{dateStr(project.fechaInicioObra || project.inicio)} → {dateStr(project.fechaEntregaObra || project.fin)}
+          </span>
           <span className="flex items-center gap-1 text-emerald-800">Ver detalle <ArrowUpRight className="h-3 w-3" /></span>
         </div>
       </div>
@@ -683,6 +734,10 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
 
   const moneyPct = stats.total > 0 ? (stats.ent / stats.total) * 100 : 0;
 
+  /* Detecta si el proyecto es de restaurante (para mostrar tools legacy) */
+  const esRestaurante = project.tipoProyecto === "restaurante"
+    || (!project.tipoProyecto && project.puestos > 0 && !project.tipologia);
+
   /* Herramientas del proyecto agrupadas por dominio.
      Las nuevas (edificación, RACI, bitácora, etc.) van marcadas con badge. */
   const toolGroups = [
@@ -705,7 +760,7 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
     {
       label: "Gestión operativa",
       tools: [
-        { id: "pendientes",   title: "Pendientes",       desc: "Seguimiento de actividades por responsable",         icon: ListChecks, sub: "lista · kanban", color: "from-rose-50 to-white",   iconColor: "text-rose-700",   neu: true },
+        { id: "pendientes",   title: "Seguimiento de actividades", desc: "Tareas anidadas, kanban y bitácora por actividad", icon: ListChecks, sub: "árbol · kanban", color: "from-rose-50 to-white", iconColor: "text-rose-700", neu: true },
         { id: "reuniones",    title: "Reuniones",        desc: "Repositorio + grabación + extracción de actividades", icon: Users,     sub: "actas vivas",     color: "from-violet-50 to-white", iconColor: "text-violet-700", neu: true },
         { id: "repo-docs",    title: "Documentos",       desc: "Repositorio por categoría (arq, técnico, legal…)",   icon: FileText,  sub: "9 categorías",    color: "from-stone-100 to-white", iconColor: "text-stone-700",  neu: true },
         { id: "info-interes", title: "Información de interés", desc: "Diccionario de procedimientos (fiducia, banco, licencias)", icon: BookOpen,  sub: "knowledge base", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true }
@@ -727,14 +782,14 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
         { id: "riesgos",     title: "Riesgos y cambios", desc: "Matriz 5×5 + control de cambios",     icon: AlertTriangle, sub: "registro",    color: "from-violet-50 to-white", iconColor: "text-violet-700" }
       ]
     },
-    {
+    ...(esRestaurante ? [{
       label: "Legacy (restaurante)",
       tools: [
         { id: "capex",       title: "CAPEX restaurante", desc: "Items, proveedores (vista antigua)", icon: DollarSign, sub: `${items.length} items`, color: "from-stone-50 to-white", iconColor: "text-stone-600" },
         { id: "evm",         title: "EVM (antiguo)",     desc: "CPI/SPI versión inicial",            icon: BarChart3,  sub: "v1",                 color: "from-stone-50 to-white", iconColor: "text-stone-600" },
         { id: "procurement", title: "Procurement",       desc: "Listado de proveedores",             icon: Truck,      sub: "contactos",          color: "from-stone-50 to-white", iconColor: "text-stone-600" }
       ]
-    }
+    }] : [])
   ];
 
   return (
@@ -2792,6 +2847,8 @@ function CrettoApp() {
   const [raciData, setRaciData] = useState(null); // { roles, matrix } del proyecto activo
   const [capexPartidas, setCapexPartidas] = useState([]); // compartido para EVM
   const [pagos, setPagos] = useState([]);
+  const [stakeholders, setStakeholders] = useState([]); // fuente única para RACI, Bitácora, etc.
+  const [stakeholderFocoId, setStakeholderFocoId] = useState(null); // para abrir la DB enfocada en un actor
   useEffect(() => {
     (async () => {
       try {
@@ -2800,6 +2857,8 @@ function CrettoApp() {
         if (r && r.value) setCapexPartidas(JSON.parse(r.value));
         const r2 = await window.storage.get(`crettohub:pagos:${projId}`);
         if (r2 && r2.value) setPagos(JSON.parse(r2.value));
+        const r3 = await window.storage.get(`crettohub:stakeholders:${projId}`);
+        if (r3 && r3.value) setStakeholders(JSON.parse(r3.value));
       } catch {}
     })();
   }, [selectedProject?.id]);
@@ -3123,7 +3182,7 @@ function CrettoApp() {
     else if (screen === "cron-proyecto") crumbs.push({ label: "Cronograma de proyecto" });
     else if (screen === "repo-docs") crumbs.push({ label: "Repositorio documentos" });
     else if (screen === "reuniones") crumbs.push({ label: "Reuniones" });
-    else if (screen === "pendientes") crumbs.push({ label: "Pendientes" });
+    else if (screen === "pendientes") crumbs.push({ label: "Seguimiento de actividades" });
     else if (screen === "raci") crumbs.push({ label: "Matriz RACI" });
     else if (screen === "bitacora") crumbs.push({ label: "Bitácora inversionistas" });
     else if (screen === "modelo-fin") crumbs.push({ label: "Modelo financiero" });
@@ -3246,6 +3305,8 @@ function CrettoApp() {
             <RepositorioDocumentos
               project={selectedProject || activeProject}
               raciData={raciData}
+              stakeholders={stakeholders}
+              onEditStakeholder={(id) => { setStakeholderFocoId(id); navigateTo("stakeholders"); }}
             />
           )}
           {screen === "reuniones" && (
@@ -3253,6 +3314,8 @@ function CrettoApp() {
               project={selectedProject || activeProject}
               onAddPendientes={addPendientes}
               raciData={raciData}
+              stakeholders={stakeholders}
+              onEditStakeholder={(id) => { setStakeholderFocoId(id); navigateTo("stakeholders"); }}
             />
           )}
           {screen === "pendientes" && (
@@ -3265,11 +3328,15 @@ function CrettoApp() {
             <RaciMatrix
               project={selectedProject || activeProject}
               onMatrixChange={setRaciData}
+              stakeholders={stakeholders}
+              onEditStakeholder={(id) => { setStakeholderFocoId(id); navigateTo("stakeholders"); }}
             />
           )}
           {screen === "bitacora" && (
             <BitacoraInversionistas
               project={selectedProject || activeProject}
+              stakeholders={stakeholders}
+              onEditStakeholder={(id) => { setStakeholderFocoId(id); navigateTo("stakeholders"); }}
             />
           )}
           {screen === "modelo-fin" && (
@@ -3298,13 +3365,20 @@ function CrettoApp() {
             <PagosProveedores
               project={selectedProject || activeProject}
               onPagosChange={setPagos}
+              stakeholders={stakeholders}
+              onEditStakeholder={(id) => { setStakeholderFocoId(id); navigateTo("stakeholders"); }}
             />
           )}
           {screen === "info-interes" && (
             <DiccionarioProcedimientos project={selectedProject || activeProject} />
           )}
           {screen === "stakeholders" && (
-            <StakeholdersDB project={selectedProject || activeProject} />
+            <StakeholdersDB
+              project={selectedProject || activeProject}
+              onChange={setStakeholders}
+              focusId={stakeholderFocoId}
+              onFocusConsumed={() => setStakeholderFocoId(null)}
+            />
           )}
           {screen === "email-settings" && <EmailSettings />}
         </main>

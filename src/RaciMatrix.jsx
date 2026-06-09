@@ -167,8 +167,29 @@ export const getNotifyRolesFromMatrix = (matrix, roles, eventoId) => {
     }));
 };
 
-const RaciMatrix = ({ project, onMatrixChange }) => {
-  const [roles, setRoles] = useState(() => buildRolesFromProject(project));
+const RaciMatrix = ({ project, onMatrixChange, stakeholders = [], onEditStakeholder }) => {
+  /* roles efectivos: si hay stakeholders en la DB, son la fuente única.
+     De lo contrario, fallback a roles derivados del proyecto / guardados. */
+  const stakeholdersDisponibles = (stakeholders || []).filter(s => s.estado !== "bloqueado");
+
+  /* Convertir stakeholder → forma de rol que espera la matriz */
+  const stakeholderARol = (s) => ({
+    id: String(s.id),                         // ids numéricos → string para la matriz
+    nombre: s.nombre,
+    organizacion: s.esEmpresa ? (s.razonSocial || s.nombre) : (s.especialidad || ""),
+    email: s.email || (s.contactos || []).find(c => c.esPrincipal)?.email || "",
+    telefono: s.telefono || s.celular || (s.contactos || []).find(c => c.esPrincipal)?.telefono || "",
+    _esStakeholder: true,                     // marca: viene de la DB, no es editable inline
+    _stakeholderId: s.id
+  });
+
+  const rolesDB = useMemo(
+    () => stakeholdersDisponibles.map(stakeholderARol),
+    [stakeholders]
+  );
+
+  /* "rolesLegacy" son los guardados antes de adoptar la DB. Si no hay DB, se usan. */
+  const [rolesLegacy, setRolesLegacy] = useState(() => buildRolesFromProject(project));
   const [matrix, setMatrix] = useState(() => buildDefaultMatrix(buildRolesFromProject(project)));
   const [grupoExp, setGrupoExp] = useState(() => {
     const g = {};
@@ -177,9 +198,13 @@ const RaciMatrix = ({ project, onMatrixChange }) => {
   });
   const [roleModal, setRoleModal] = useState(null);
 
+  /* Fuente efectiva: DB si tiene datos, sino legacy */
+  const roles = rolesDB.length > 0 ? rolesDB : rolesLegacy;
+  const setRoles = rolesDB.length > 0 ? () => {} : setRolesLegacy;   // bloqueado cuando DB manda
+
   const storageKey = `crettohub:raci:${project?.id || "default"}`;
 
-  /* Cargar */
+  /* Cargar (solo la matriz; los roles los provee la DB) */
   useEffect(() => {
     let m = true;
     (async () => {
@@ -187,22 +212,25 @@ const RaciMatrix = ({ project, onMatrixChange }) => {
         const r = await window.storage.get(storageKey);
         if (m && r && r.value) {
           const data = JSON.parse(r.value);
-          if (data.roles) setRoles(data.roles);
+          if (data.roles && rolesDB.length === 0) setRolesLegacy(data.roles);
           if (data.matrix) setMatrix(data.matrix);
         }
       } catch {}
     })();
     return () => { m = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
   /* Guardar */
   useEffect(() => {
     const t = setTimeout(() => {
-      window.storage.set(storageKey, JSON.stringify({ roles, matrix })).catch(() => {});
+      // Si la fuente es la DB, no guardamos roles (evitamos duplicar). Solo guardamos matriz.
+      const data = rolesDB.length > 0 ? { matrix } : { roles: rolesLegacy, matrix };
+      window.storage.set(storageKey, JSON.stringify(data)).catch(() => {});
       if (onMatrixChange) onMatrixChange({ roles, matrix });
     }, 400);
     return () => clearTimeout(t);
-  }, [roles, matrix, storageKey, onMatrixChange]);
+  }, [rolesLegacy, matrix, storageKey, onMatrixChange, rolesDB.length, roles]);
 
   const grupos = useMemo(() => Array.from(new Set(EVENTOS_RACI.map(e => e.grupo))), []);
 
@@ -228,10 +256,13 @@ const RaciMatrix = ({ project, onMatrixChange }) => {
     setCell(evtId, roleId, next);
   };
 
-  /* Mutaciones de roles */
+  /* Mutaciones de roles (solo funcionan en modo legacy; con DB están bloqueadas) */
+  const fuenteEsDB = rolesDB.length > 0;
+
   const addRole = (data) => {
+    if (fuenteEsDB) { alert("Para agregar un stakeholder, ve a la Base de Stakeholders."); return; }
     const id = data.id || `role-${Date.now()}`;
-    setRoles(prev => [...prev, { ...data, id }]);
+    setRolesLegacy(prev => [...prev, { ...data, id }]);
     setMatrix(prev => {
       const next = { ...prev };
       EVENTOS_RACI.forEach(e => { next[e.id] = { ...(next[e.id] || {}), [id]: "" }; });
@@ -241,12 +272,14 @@ const RaciMatrix = ({ project, onMatrixChange }) => {
   };
 
   const updateRole = (id, patch) => {
-    setRoles(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+    if (fuenteEsDB) return;     // ignorado: la fuente es la DB
+    setRolesLegacy(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
   };
 
   const removeRole = (id) => {
+    if (fuenteEsDB) { alert("Para eliminar un stakeholder, ve a la Base de Stakeholders."); return; }
     if (!confirm("¿Eliminar este rol de la matriz?")) return;
-    setRoles(prev => prev.filter(r => r.id !== id));
+    setRolesLegacy(prev => prev.filter(r => r.id !== id));
     setMatrix(prev => {
       const next = {};
       Object.entries(prev).forEach(([evt, row]) => {
@@ -295,9 +328,22 @@ const RaciMatrix = ({ project, onMatrixChange }) => {
         <div className="flex gap-2">
           <button onClick={resetDefaults} className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-[12px] text-stone-700 hover:bg-stone-50">Reset defaults</button>
           <button onClick={exportCsv} className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-[12px] text-stone-700 hover:bg-stone-50"><Download className="h-3.5 w-3.5" /> CSV</button>
-          <button onClick={() => setRoleModal({})} className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800"><Plus className="h-3.5 w-3.5" /> Agregar rol</button>
+          {!fuenteEsDB && (
+            <button onClick={() => setRoleModal({})} className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800"><Plus className="h-3.5 w-3.5" /> Agregar rol</button>
+          )}
+          {fuenteEsDB && onEditStakeholder && (
+            <button onClick={() => onEditStakeholder(null)} className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800">
+              + Stakeholder en DB →
+            </button>
+          )}
         </div>
       </header>
+
+      {fuenteEsDB && (
+        <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-900">
+          📌 <strong>Fuente única:</strong> los {rolesDB.length} roles vienen de la <strong>Base de Stakeholders</strong>. Para editar nombre, email o teléfono, click en el nombre del rol → "Editar en Stakeholders DB". Los valores R/A/C/I se editan acá normalmente.
+        </div>
+      )}
 
       {/* Leyenda */}
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2 text-[11px]">
@@ -386,22 +432,69 @@ const RaciMatrix = ({ project, onMatrixChange }) => {
       </div>
 
       {roleModal !== null && (
-        <RoleModal
-          initial={roleModal.id ? roleModal : null}
-          onClose={() => setRoleModal(null)}
-          onSave={(data) => {
-            if (data.id && roles.find(r => r.id === data.id)) {
-              updateRole(data.id, data);
-              setRoleModal(null);
-            } else {
-              addRole(data);
-            }
-          }}
-        />
+        fuenteEsDB && roleModal._esStakeholder
+          ? <RoleModalReadOnly
+              rol={roleModal}
+              onClose={() => setRoleModal(null)}
+              onEditDB={() => { onEditStakeholder && onEditStakeholder(roleModal._stakeholderId); setRoleModal(null); }}
+            />
+          : <RoleModal
+              initial={roleModal.id ? roleModal : null}
+              onClose={() => setRoleModal(null)}
+              onSave={(data) => {
+                if (data.id && roles.find(r => r.id === data.id)) {
+                  updateRole(data.id, data);
+                  setRoleModal(null);
+                } else {
+                  addRole(data);
+                }
+              }}
+            />
       )}
     </div>
   );
 };
+
+/* Modal read-only cuando el rol viene de la Stakeholders DB.
+   Toda edición se canaliza a la DB para mantener la fuente única. */
+const RoleModalReadOnly = ({ rol, onClose, onEditDB }) => (
+  <div className="fixed inset-0 z-[55] flex items-center justify-center bg-stone-900/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="w-full max-w-md rounded-lg bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <header className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-stone-400">Vista de rol</div>
+          <h3 className="font-serif text-base">{rol.nombre}</h3>
+        </div>
+        <button onClick={onClose} className="rounded-md p-1 text-stone-500 hover:bg-stone-100"><X className="h-4 w-4" /></button>
+      </header>
+      <div className="space-y-3 p-4">
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-[11px] text-blue-900">
+          📌 La información de contacto vive en la <strong>Base de Stakeholders</strong>. Cualquier cambio se hace ahí para que se refleje en todo el hub (RACI, Notificaciones, Bitácora).
+        </div>
+        <ReadField label="Organización" value={rol.organizacion} />
+        <div className="grid grid-cols-2 gap-3">
+          <ReadField label="Email" value={rol.email} mono />
+          <ReadField label="Teléfono" value={rol.telefono} mono />
+        </div>
+      </div>
+      <footer className="flex justify-end gap-2 border-t border-stone-200 bg-stone-50 px-4 py-2.5">
+        <button onClick={onClose} className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-[12px] text-stone-700 hover:bg-stone-50">Cerrar</button>
+        <button onClick={onEditDB} className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800">
+          Editar en Stakeholders DB →
+        </button>
+      </footer>
+    </div>
+  </div>
+);
+
+const ReadField = ({ label, value, mono }) => (
+  <div>
+    <span className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-stone-600">{label}</span>
+    <div className={`rounded-md border border-stone-200 bg-stone-50 px-3 py-1.5 text-[13px] text-stone-800 ${mono ? "font-mono text-[12px]" : ""}`}>
+      {value || <span className="italic text-stone-400">— sin definir —</span>}
+    </div>
+  </div>
+);
 
 const RoleModal = ({ initial, onClose, onSave }) => {
   const [form, setForm] = useState(initial || { id: "", nombre: "", organizacion: "", email: "", telefono: "" });

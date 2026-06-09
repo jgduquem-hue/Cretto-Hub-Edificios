@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Plus, Trash2, X, Upload, Search, Filter, CheckCircle2, Clock, AlertCircle, ArrowRight } from "lucide-react";
 import { useResizableColumns, ResizableTh, ResetWidthsButton } from "./ResizableColumns.jsx";
+import StakeholderPicker from "./StakeholderPicker.jsx";
 
 /* ────────────────────────────────────────────────────────────────
    Pagos a proveedores — registro auxiliar enlazado al CAPEX por WBS
@@ -77,7 +78,7 @@ export const acByWbs = (pagos, opts = {}) => {
   return out;
 };
 
-const PagosProveedores = ({ project, onPagosChange }) => {
+const PagosProveedores = ({ project, onPagosChange, stakeholders = [], onEditStakeholder }) => {
   const [pagos, setPagos] = useState(SEED_PAGOS);
   const [modal, setModal] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState("all");
@@ -193,7 +194,7 @@ const PagosProveedores = ({ project, onPagosChange }) => {
         </div>
       </div>
 
-      {modal !== null && <PagoModal initial={modal.id ? modal : null} onClose={() => setModal(null)} onSave={upsert} />}
+      {modal !== null && <PagoModal initial={modal.id ? modal : null} onClose={() => setModal(null)} onSave={upsert} stakeholders={stakeholders} onEditStakeholder={onEditStakeholder} />}
     </div>
   );
 };
@@ -266,9 +267,9 @@ const Kpi = ({ label, value, color = "stone", sub }) => {
   );
 };
 
-const PagoModal = ({ initial, onClose, onSave }) => {
+const PagoModal = ({ initial, onClose, onSave, stakeholders = [], onEditStakeholder }) => {
   const [form, setForm] = useState(initial || {
-    fecha: new Date().toISOString().slice(0, 10), proveedor: "", descripcion: "",
+    fecha: new Date().toISOString().slice(0, 10), proveedor: "", proveedorId: null, descripcion: "",
     monto: "", estado: "causado", wbs: "", soporte: ""
   });
   return (
@@ -287,7 +288,16 @@ const PagoModal = ({ initial, onClose, onSave }) => {
               </select>
             </Field>
           </div>
-          <Field label="Proveedor" required><input value={form.proveedor} onChange={e => setForm({ ...form, proveedor: e.target.value })} className="inp" placeholder="Ej. Constructora ABC" /></Field>
+          <Field label="Proveedor" required>
+            <StakeholderPicker
+              value={form.proveedor}
+              onChange={(text, id) => setForm({ ...form, proveedor: text, proveedorId: id })}
+              stakeholders={stakeholders}
+              tipos={["proveedor", "constructor", "diseñador", "interventoria"]}
+              onEditStakeholder={onEditStakeholder}
+              placeholder="Buscar en DB o escribir nombre…"
+            />
+          </Field>
           <Field label="Descripción"><input value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} className="inp" placeholder="Ej. Anticipo cimentación" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Monto (COP)" required><input type="number" value={form.monto} onChange={e => setForm({ ...form, monto: parseFloat(e.target.value) || 0 })} className="inp" /></Field>

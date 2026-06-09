@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import RaciNotifyModal from "./RaciNotify.jsx";
 import { useResizableColumns, ResizableTh, ResetWidthsButton } from "./ResizableColumns.jsx";
+import StakeholderPicker from "./StakeholderPicker.jsx";
 
 /* ────────────────────────────────────────────────────────────────
    Repositorio de Documentos — proyectos de edificación
@@ -58,7 +59,7 @@ const SEED_DOCS = [
   { id: 6, nombre: "Estudio de suelos", categoria: "tecnicos", sub: "Suelos", version: "Final", autor: "Geotecnia SAS", fecha: "2025-11-08", estado: "vigente", tamaño: "5.6 MB", tags: [], notas: "" }
 ];
 
-const RepositorioDocumentos = ({ project, onInfo, raciData }) => {
+const RepositorioDocumentos = ({ project, onInfo, raciData, stakeholders = [], onEditStakeholder }) => {
   const [docs, setDocs] = useState(SEED_DOCS);
   const [query, setQuery] = useState("");
   const [filtroCat, setFiltroCat] = useState("all");
@@ -235,7 +236,7 @@ const RepositorioDocumentos = ({ project, onInfo, raciData }) => {
         </table>
       </div>
 
-      {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onUpload={handleUpload} />}
+      {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onUpload={handleUpload} stakeholders={stakeholders} onEditStakeholder={onEditStakeholder} />}
       <RaciNotifyModal open={!!raciPayload} payload={raciPayload} raciData={raciData} onClose={() => setRaciPayload(null)} />
     </div>
   );
@@ -252,7 +253,7 @@ const CatChip = ({ label, active, onClick, color, icon: Icon }) => (
 );
 
 /* ─── Modal de subida ─── */
-const UploadModal = ({ onClose, onUpload }) => {
+const UploadModal = ({ onClose, onUpload, stakeholders = [], onEditStakeholder }) => {
   const [form, setForm] = useState({
     nombre: "", categoria: "arquitectura", sub: "", version: "v1",
     autor: "", fecha: new Date().toISOString().slice(0, 10),
@@ -294,7 +295,15 @@ const UploadModal = ({ onClose, onUpload }) => {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Versión"><input value={form.version} onChange={e => setForm({ ...form, version: e.target.value })} className="inp" /></Field>
-            <Field label="Autor / firma"><input value={form.autor} onChange={e => setForm({ ...form, autor: e.target.value })} className="inp" /></Field>
+            <Field label="Autor / firma">
+              <StakeholderPicker
+                value={form.autor}
+                onChange={(text, id) => setForm({ ...form, autor: text, autorId: id })}
+                stakeholders={stakeholders}
+                onEditStakeholder={onEditStakeholder}
+                placeholder="Autor (buscar en DB)"
+              />
+            </Field>
             <Field label="Fecha"><input type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} className="inp" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">

@@ -278,7 +278,7 @@ export const SEED_STAKEHOLDERS_CASA107 = [
 ];
 
 /* ─── Componente principal ──────────────────────────────────────── */
-const StakeholdersDB = ({ project, onChange }) => {
+const StakeholdersDB = ({ project, onChange, focusId, onFocusConsumed }) => {
   const [stakeholders, setStakeholders] = useState(SEED_STAKEHOLDERS_CASA107);
   const [query, setQuery] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("all");
@@ -305,6 +305,19 @@ const StakeholdersDB = ({ project, onChange }) => {
     if (onChange) onChange(stakeholders);
     return () => clearTimeout(t);
   }, [stakeholders, project?.id, onChange]);
+
+  /* Si llega focusId desde otro módulo (ej. RACI), abre el modal en ese stakeholder */
+  useEffect(() => {
+    if (focusId != null) {
+      const sk = stakeholders.find(s => s.id === focusId);
+      if (sk) {
+        setModal(sk);
+        // scroll to top
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
+      }
+      if (onFocusConsumed) onFocusConsumed();
+    }
+  }, [focusId, stakeholders, onFocusConsumed]);
 
   const filtered = useMemo(() => {
     return stakeholders.filter(s => {

@@ -77,13 +77,55 @@ const SEED_ENTRADAS = [
   }
 ];
 
-const BitacoraInversionistas = ({ project }) => {
+/* Mapping stakeholder.tipos → audiencia bitácora */
+const TIPO_TO_AUDIENCIA = {
+  inversionista: "inversionistas",
+  comprador:     "clientes",
+  fiducia:       "fiduciaria",
+  banco:         "banco",
+  interno:       "interno"
+};
+const tipoAAudiencia = (tipos = []) => {
+  for (const t of tipos) if (TIPO_TO_AUDIENCIA[t]) return TIPO_TO_AUDIENCIA[t];
+  return null;
+};
+
+const BitacoraInversionistas = ({ project, stakeholders = [], onEditStakeholder }) => {
   const [entradas, setEntradas] = useState(SEED_ENTRADAS);
-  const [contactos, setContactos] = useState(SEED_CONTACTOS);
-  const [tab, setTab] = useState("bitacora"); // bitacora | contactos | newsletter
+  const [contactosLegacy, setContactosLegacy] = useState(SEED_CONTACTOS);
+  /* Extras bitácora-only (intereses, aporte, pctAporte) keyed por stakeholderId */
+  const [extras, setExtras] = useState({});
+  const [tab, setTab] = useState("bitacora");
   const [entryModal, setEntryModal] = useState(null);
   const [contactModal, setContactModal] = useState(null);
-  const [newsletterTarget, setNewsletterTarget] = useState(null); // { entrada, audiencia }
+  const [newsletterTarget, setNewsletterTarget] = useState(null);
+
+  /* Si hay stakeholders, derivamos los contactos desde ahí + mergeamos extras locales.
+     Si no, usamos los SEED_CONTACTOS legacy (compat con proyectos viejos). */
+  const fuenteEsDB = stakeholders.length > 0;
+  const contactos = useMemo(() => {
+    if (!fuenteEsDB) return contactosLegacy;
+    return stakeholders
+      .map(s => {
+        const aud = tipoAAudiencia(s.tipos);
+        if (!aud) return null;
+        const principal = (s.contactos || []).find(c => c.esPrincipal) || (s.contactos || [])[0];
+        const ex = extras[s.id] || {};
+        return {
+          id: s.id,
+          _stakeholderId: s.id,
+          nombre: s.nombre,
+          organizacion: s.esEmpresa ? (s.razonSocial || s.nombre) : (s.especialidad || ""),
+          audiencia: aud,
+          email: s.email || principal?.email || "",
+          telefono: s.telefono || principal?.telefono || "",
+          intereses: ex.intereses || [],
+          aporteCop: ex.aporteCop || s.aporteCop || 0,
+          pctAporte: ex.pctAporte || s.pctParticipacion || 0
+        };
+      })
+      .filter(Boolean);
+  }, [fuenteEsDB, stakeholders, extras, contactosLegacy]);
 
   /* Persistencia */
   useEffect(() => {
@@ -93,7 +135,9 @@ const BitacoraInversionistas = ({ project }) => {
         const r1 = await window.storage.get(`crettohub:bitacora:${project?.id || "default"}`);
         if (m && r1 && r1.value) setEntradas(JSON.parse(r1.value));
         const r2 = await window.storage.get(`crettohub:contactos:${project?.id || "default"}`);
-        if (m && r2 && r2.value) setContactos(JSON.parse(r2.value));
+        if (m && r2 && r2.value) setContactosLegacy(JSON.parse(r2.value));
+        const r3 = await window.storage.get(`crettohub:contactos-extras:${project?.id || "default"}`);
+        if (m && r3 && r3.value) setExtras(JSON.parse(r3.value));
       } catch {}
     })();
     return () => { m = false; };
@@ -106,12 +150,22 @@ const BitacoraInversionistas = ({ project }) => {
     return () => clearTimeout(t);
   }, [entradas, project?.id]);
 
+  /* Solo persistimos los contactos legacy si no hay DB */
   useEffect(() => {
+    if (fuenteEsDB) return;
     const t = setTimeout(() => {
-      window.storage.set(`crettohub:contactos:${project?.id || "default"}`, JSON.stringify(contactos)).catch(() => {});
+      window.storage.set(`crettohub:contactos:${project?.id || "default"}`, JSON.stringify(contactosLegacy)).catch(() => {});
     }, 500);
     return () => clearTimeout(t);
-  }, [contactos, project?.id]);
+  }, [contactosLegacy, project?.id, fuenteEsDB]);
+
+  /* Extras bitácora-only (intereses, aporte) — siempre se guardan */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      window.storage.set(`crettohub:contactos-extras:${project?.id || "default"}`, JSON.stringify(extras)).catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [extras, project?.id]);
 
   const upsertEntrada = (data) => {
     if (data.id && entradas.find(e => e.id === data.id)) {
@@ -124,13 +178,31 @@ const BitacoraInversionistas = ({ project }) => {
   };
 
   const upsertContacto = (data) => {
-    if (data.id && contactos.find(c => c.id === data.id)) {
-      setContactos(prev => prev.map(c => c.id === data.id ? data : c));
+    if (fuenteEsDB) {
+      /* En modo DB solo guardamos los extras (intereses, aporte) keyed por stakeholderId.
+         Nombre/email/teléfono siempre vienen de la DB. */
+      const sid = data._stakeholderId || data.id;
+      setExtras(prev => ({
+        ...prev,
+        [sid]: { intereses: data.intereses || [], aporteCop: data.aporteCop || 0, pctAporte: data.pctAporte || 0 }
+      }));
     } else {
-      const id = Math.max(0, ...contactos.map(c => c.id)) + 1;
-      setContactos(prev => [...prev, { ...data, id }]);
+      if (data.id && contactosLegacy.find(c => c.id === data.id)) {
+        setContactosLegacy(prev => prev.map(c => c.id === data.id ? data : c));
+      } else {
+        const id = Math.max(0, ...contactosLegacy.map(c => c.id)) + 1;
+        setContactosLegacy(prev => [...prev, { ...data, id }]);
+      }
     }
     setContactModal(null);
+  };
+
+  const removeContacto = (id) => {
+    if (fuenteEsDB) {
+      alert("Para eliminar este stakeholder, ve a la Base de Stakeholders.");
+      return;
+    }
+    setContactosLegacy(prev => prev.filter(c => c.id !== id));
   };
 
   const stats = useMemo(() => {
@@ -184,7 +256,15 @@ const BitacoraInversionistas = ({ project }) => {
         <BitacoraTab entradas={entradas} onNew={() => setEntryModal({})} onEdit={(e) => setEntryModal(e)} onDelete={(id) => setEntradas(prev => prev.filter(e => e.id !== id))} onSend={(entrada) => { setTab("newsletter"); setNewsletterTarget({ entrada, audiencia: null }); }} />
       )}
       {tab === "contactos" && (
-        <ContactosTab contactos={contactos} onNew={() => setContactModal({})} onEdit={(c) => setContactModal(c)} onDelete={(id) => setContactos(prev => prev.filter(c => c.id !== id))} statsAudiencia={stats.porAudiencia} />
+        <ContactosTab
+          contactos={contactos}
+          onNew={() => fuenteEsDB ? (onEditStakeholder && onEditStakeholder(null)) : setContactModal({})}
+          onEdit={(c) => fuenteEsDB ? (onEditStakeholder && onEditStakeholder(c._stakeholderId)) : setContactModal(c)}
+          onEditIntereses={(c) => setContactModal(c)}
+          onDelete={removeContacto}
+          statsAudiencia={stats.porAudiencia}
+          fuenteEsDB={fuenteEsDB}
+        />
       )}
       {tab === "newsletter" && (
         <NewsletterTab entradas={entradas} contactos={contactos} target={newsletterTarget} setTarget={setNewsletterTarget} project={project} />
@@ -295,7 +375,7 @@ const BloqueCard = ({ bloque }) => {
 };
 
 /* ─── Tab: Contactos ─── */
-const ContactosTab = ({ contactos, onNew, onEdit, onDelete, statsAudiencia }) => {
+const ContactosTab = ({ contactos, onNew, onEdit, onEditIntereses, onDelete, statsAudiencia, fuenteEsDB }) => {
   const [filtro, setFiltro] = useState("all");
   const [query, setQuery] = useState("");
   const filtered = contactos.filter(c => {
@@ -308,6 +388,11 @@ const ContactosTab = ({ contactos, onNew, onEdit, onDelete, statsAudiencia }) =>
   });
   return (
     <div className="space-y-3">
+      {fuenteEsDB && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-900">
+          📌 <strong>Fuente única:</strong> los contactos vienen de la <strong>Base de Stakeholders</strong> (tipos inversionista, comprador, fiducia, banco, interno). Nombre, email y teléfono se editan ahí. Los <strong>intereses</strong> y <strong>aporte</strong> son específicos de la bitácora y se editan acá con el botón ✎.
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setFiltro("all")} className={`rounded-full border px-2.5 py-1 text-[11px] ${filtro === "all" ? "bg-stone-700 text-white border-stone-700" : "bg-white border-stone-200 text-stone-600"}`}>Todos ({contactos.length})</button>
         {AUDIENCIAS.map(a => (
@@ -320,7 +405,7 @@ const ContactosTab = ({ contactos, onNew, onEdit, onDelete, statsAudiencia }) =>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar…" className="rounded-md border border-stone-300 bg-white py-1 pl-7 pr-2 text-[12px] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
         </div>
         <button onClick={onNew} className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800">
-          <Plus className="h-3.5 w-3.5" /> Nuevo contacto
+          <Plus className="h-3.5 w-3.5" /> {fuenteEsDB ? "Nuevo en DB →" : "Nuevo contacto"}
         </button>
       </div>
 
@@ -359,7 +444,12 @@ const ContactosTab = ({ contactos, onNew, onEdit, onDelete, statsAudiencia }) =>
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-[11px] text-stone-600">{c.pctAporte ? `${c.pctAporte}%` : "—"}</td>
                   <td className="px-3 py-2 text-right">
-                    <button onClick={() => onDelete(c.id)} className="rounded p-1 text-stone-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <div className="inline-flex gap-1">
+                      {fuenteEsDB && (
+                        <button onClick={() => onEditIntereses(c)} className="rounded p-1 text-stone-500 hover:bg-stone-100" title="Editar intereses y aporte (bitácora)"><Plus className="h-3.5 w-3.5 rotate-45" /></button>
+                      )}
+                      <button onClick={() => onDelete(c.id)} className="rounded p-1 text-stone-400 hover:bg-rose-50 hover:text-rose-600" title={fuenteEsDB ? "Eliminar (en DB)" : "Eliminar contacto"}><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
                   </td>
                 </tr>
               );
