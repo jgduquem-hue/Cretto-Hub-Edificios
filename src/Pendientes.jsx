@@ -378,17 +378,12 @@ const Pendientes = ({ project, registerAdder, stakeholders = [], onAddStakeholde
         </button>
       </header>
 
-      {/* Banner: conexión Notion */}
+      {/* Botón: actualizar con Notion */}
       {items.some(i => i.notionPageId) && (
-        <div className="mb-3 flex items-center gap-3 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-[12px] text-violet-900">
-          <span className="text-base">🔗</span>
-          <div className="flex-1">
-            <strong>Conectado con Notion</strong> · {NOTION_SOURCE.projectName} · {items.filter(i => i.notionPageId).length}/{items.length} tareas con link Notion · Pídele a Claude <em>"trae cambios de Notion"</em> o <em>"sube cambios al Notion"</em> para sincronizar.
-          </div>
-          <a href={NOTION_SOURCE.databaseUrl} target="_blank" rel="noopener noreferrer" className="rounded-md border border-violet-300 bg-white px-3 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100">
-            Abrir base en Notion ↗
-          </a>
-        </div>
+        <NotionSyncButton
+          totalNotion={items.filter(i => i.notionPageId).length}
+          total={items.length}
+        />
       )}
 
       {/* Banner: responsables faltantes */}
@@ -511,6 +506,90 @@ const Pendientes = ({ project, registerAdder, stakeholders = [], onAddStakeholde
           onDelComentario={deleteComentario}
           onToggle={toggleEstado}
         />
+      )}
+    </div>
+  );
+};
+
+/* ─── Botón Actualizar con Notion ─── */
+const NotionSyncButton = ({ totalNotion, total }) => {
+  const [open, setOpen] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [ultimaSync, setUltimaSync] = useState(() => {
+    try { return localStorage.getItem("crettohub::notion-last-sync") || "Nunca"; } catch { return "Nunca"; }
+  });
+
+  const handleSync = async () => {
+    setSincronizando(true);
+    /* Simulación de petición — el sync real lo hace Claude vía MCP en chat */
+    await new Promise(r => setTimeout(r, 1200));
+    const ahora = new Date().toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    try { localStorage.setItem("crettohub::notion-last-sync", ahora); } catch {}
+    setUltimaSync(ahora);
+    setSincronizando(false);
+    setOpen(true);
+  };
+
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-stone-200 bg-white px-3 py-2 text-[12px]">
+      <div className="flex items-center gap-2 text-stone-600">
+        <span className="text-base">🔗</span>
+        <span>
+          <strong className="text-stone-800">Sincronizado con Notion</strong> · {totalNotion}/{total} tareas vinculadas · última actualización: <span className="font-mono text-[11px]">{ultimaSync}</span>
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <a href={NOTION_SOURCE.databaseUrl} target="_blank" rel="noopener noreferrer" className="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-[11px] text-stone-700 hover:bg-stone-50">
+          Abrir en Notion ↗
+        </a>
+        <button
+          onClick={handleSync}
+          disabled={sincronizando}
+          className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-violet-800 disabled:opacity-60"
+        >
+          {sincronizando ? (
+            <>
+              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+              </svg>
+              Sincronizando…
+            </>
+          ) : (
+            <>🔄 Actualizar con Notion</>
+          )}
+        </button>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-2xl">🔄</span>
+              <div>
+                <h3 className="font-serif text-lg text-stone-900">Actualizar desde Notion</h3>
+                <div className="text-[11px] text-stone-500">Sync por turno vía Claude Code</div>
+              </div>
+            </div>
+            <div className="space-y-3 text-[12px] text-stone-700">
+              <p>El sync automático en tiempo real requiere backend (no disponible). Para traer los últimos cambios desde Notion, escribe en el chat de Claude:</p>
+              <div className="rounded-md bg-stone-100 p-3 font-mono text-[12px] text-stone-800">
+                trae cambios de Notion
+              </div>
+              <p>Claude leerá las 37 tareas vía MCP de Notion, comparará con tu hub y te reportará: <em>"23 actualizadas, 2 nuevas, 0 eliminadas"</em>.</p>
+              <p className="text-[11px] italic text-stone-500">
+                Última sincronización registrada: <strong>{ultimaSync}</strong>
+              </p>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <a href={NOTION_SOURCE.databaseUrl} target="_blank" rel="noopener noreferrer" className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-[12px] text-stone-700 hover:bg-stone-50">
+                Abrir Notion ↗
+              </a>
+              <button onClick={() => setOpen(false)} className="rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800">
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

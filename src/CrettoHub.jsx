@@ -30,6 +30,7 @@ import CapexEdificios from "./CapexEdificios.jsx";
 import EvmCapexCronograma from "./EvmCapexCronograma.jsx";
 import PagosProveedores, { acByWbs } from "./PagosProveedores.jsx";
 import Tesoreria from "./Tesoreria.jsx";
+import PMIReportLibrary from "./PMIReportLibrary.jsx";
 import EmailSettings from "./EmailSettings.jsx";
 import DiccionarioProcedimientos from "./DiccionarioProcedimientos.jsx";
 import StakeholdersDB from "./StakeholdersDB.jsx";
@@ -457,6 +458,7 @@ const Sidebar = ({ screen, onNav }) => {
     { id: "evm-capex", icon: Activity, label: "EVM CAPEX/Cronograma" },
     { id: "pagos", icon: Truck, label: "Pagos a proveedores" },
     { id: "tesoreria", icon: Wallet, label: "Tesorería (CFO)" },
+    { id: "informes-pmi", icon: FileCheck, label: "Biblioteca PMI" },
     { id: "info-interes", icon: BookOpen, label: "Información de interés" },
     { id: "stakeholders", icon: Users, label: "Stakeholders DB" },
     { id: "global-evm", icon: BarChart3, label: "Métricas" },
@@ -780,6 +782,7 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
     {
       label: "Cierre y reportería",
       tools: [
+        { id: "informes-pmi", title: "Biblioteca PMI ★", desc: "12 informes con descripción + preview gráfico", icon: FileCheck, sub: "11 PMI + Inversionistas", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
         { id: "informes",    title: "Informes",         desc: "Plantillas semanal · mensual · cierre", icon: FileCheck,     sub: "PMI",        color: "from-rose-50 to-white",   iconColor: "text-rose-700" },
         { id: "documentos",  title: "Documentos PMI",   desc: "11 entregables del PMBOK",              icon: FileText,      sub: "estado vivo", color: "from-stone-100 to-white", iconColor: "text-stone-700" },
         { id: "riesgos",     title: "Riesgos y cambios", desc: "Matriz 5×5 + control de cambios",     icon: AlertTriangle, sub: "registro",    color: "from-violet-50 to-white", iconColor: "text-violet-700" }
@@ -3138,6 +3141,7 @@ function CrettoApp() {
     else if (tool === "evm-capex") navigateTo("evm-capex");
     else if (tool === "pagos") navigateTo("pagos");
     else if (tool === "tesoreria") navigateTo("tesoreria");
+    else if (tool === "informes-pmi") navigateTo("informes-pmi");
     else if (tool === "info-interes") navigateTo("info-interes");
     else if (tool === "stakeholders") navigateTo("stakeholders");
   };
@@ -3194,6 +3198,7 @@ function CrettoApp() {
     else if (screen === "evm-capex") crumbs.push({ label: "EVM CAPEX/Cronograma" });
     else if (screen === "pagos") crumbs.push({ label: "Pagos a proveedores" });
     else if (screen === "tesoreria") crumbs.push({ label: "Tesorería (CFO)" });
+    else if (screen === "informes-pmi") crumbs.push({ label: "Biblioteca PMI" });
     else if (screen === "email-settings") crumbs.push({ label: "Configuración correo" });
     else if (screen === "info-interes") crumbs.push({ label: "Información de interés" });
     else if (screen === "stakeholders") crumbs.push({ label: "Base de stakeholders" });
@@ -3215,6 +3220,7 @@ function CrettoApp() {
     else if (key === "evm-capex") { setSelectedProject(activeProject); navigateTo("evm-capex"); }
     else if (key === "pagos") { setSelectedProject(activeProject); navigateTo("pagos"); }
     else if (key === "tesoreria") { setSelectedProject(activeProject); navigateTo("tesoreria"); }
+    else if (key === "informes-pmi") { setSelectedProject(activeProject); navigateTo("informes-pmi"); }
     else if (key === "info-interes") { setSelectedProject(activeProject); navigateTo("info-interes"); }
     else if (key === "stakeholders") { setSelectedProject(activeProject); navigateTo("stakeholders"); }
     else if (key === "email-settings") { navigateTo("email-settings"); }
@@ -3393,6 +3399,15 @@ function CrettoApp() {
               project={selectedProject || activeProject}
               partidas={capexPartidas}
               tareas={tareas}
+              pagos={pagos}
+            />
+          )}
+          {screen === "informes-pmi" && (
+            <PMIReportLibrary
+              project={selectedProject || activeProject}
+              partidas={capexPartidas}
+              tareas={tareas}
+              stakeholders={stakeholders}
               pagos={pagos}
             />
           )}
