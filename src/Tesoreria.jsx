@@ -9,6 +9,9 @@ import {
   BarChart, Bar, Legend, AreaChart, Area, ReferenceLine, ComposedChart
 } from "recharts";
 import { getValor } from "./capexCronoLink.js";
+import { capexPorFase, capexFlujoEgresos, FASES_INVERSION } from "./CapexEdificios.jsx";
+
+const FASE_HEX = { preoperativo: "#6366f1", operativo: "#10b981", cierre: "#f59e0b" };
 
 /* ────────────────────────────────────────────────────────────────
    Tesorería — Dashboard CFO Cretto
@@ -205,6 +208,7 @@ const Tesoreria = ({ project, partidas = [], tareas = [], pagos = [] }) => {
         {[
           { id: "hitos",    label: "Matriz Hitos ↔ Caja", icon: Calendar },
           { id: "liquidez", label: "Liquidez & Caja",     icon: Wallet },
+          { id: "egresos",  label: "Egresos CAPEX (fases)", icon: TrendingDown },
           { id: "pagos",    label: "Cronograma Pagos",    icon: DollarSign },
           { id: "credito",  label: "Crédito Constructor", icon: Landmark },
           { id: "stress",   label: "Stress Tests",        icon: Zap }
@@ -219,7 +223,8 @@ const Tesoreria = ({ project, partidas = [], tareas = [], pagos = [] }) => {
       </div>
 
       {tab === "hitos" && <MatrizHitos supuestos={supuestos} estado={estadoActual} project={project} />}
-      {tab === "liquidez" && <LiquidezTab supuestos={supuestos} estado={estadoActual} semaforo={semaforoLiquidez} />}
+      {tab === "liquidez" && <LiquidezTab supuestos={supuestos} estado={estadoActual} semaforo={semaforoLiquidez} partidas={partidas} project={project} />}
+      {tab === "egresos" && <EgresosCapexTab partidas={partidas} project={project} ventasTotales={supuestos.ventasTotalesEstimadas} />}
       {tab === "pagos" && <CronogramaPagosTab pagos={pagos} partidas={partidas} project={project} />}
       {tab === "credito" && <CreditoConstructorTab supuestos={supuestos} estado={estadoActual} />}
       {tab === "stress" && <StressTestsTab supuestos={supuestos} estado={estadoActual} />}
@@ -344,22 +349,31 @@ const MatrizHitos = ({ supuestos, estado, project }) => {
 };
 
 /* ─────────────── Tab 2: Liquidez ─────────────── */
-const LiquidezTab = ({ supuestos, estado, semaforo }) => {
-  /* Proyección mensual simplificada */
+const LiquidezTab = ({ supuestos, estado, semaforo, partidas = [], project }) => {
+  /* Egresos reales del CAPEX por fase, distribuidos en el tiempo */
+  const egresosCapex = useMemo(
+    () => capexFlujoEgresos(partidas, "constructor", { inicioObra: project?.fechaInicioObra }),
+    [partidas, project]
+  );
+
+  /* Proyección mensual — usa egresos reales del CAPEX si existen, sino curva sintética */
   const proyeccion = useMemo(() => {
-    const meses = supuestos.mesesObra;
+    const usarReal = egresosCapex.length > 0;
+    const meses = usarReal ? egresosCapex.length : supuestos.mesesObra;
     const out = [];
     let saldo = estado.saldoDisponible;
     for (let m = 0; m < meses; m++) {
       const ingresoEsperado = (m === 0 ? estado.saldoDisponible * 0.3 : 0)
         + supuestos.ventasTotalesEstimadas * (m / meses) * 0.001;
-      const egresoEsperado = supuestos.egresoMensualPromedio * (m < 3 ? 0.3 : m < meses * 0.7 ? 1.3 : 0.6);
+      const egresoEsperado = usarReal
+        ? egresosCapex[m].total
+        : supuestos.egresoMensualPromedio * (m < 3 ? 0.3 : m < meses * 0.7 ? 1.3 : 0.6);
       const flujoNeto = ingresoEsperado - egresoEsperado;
       saldo += flujoNeto;
       const colchon = supuestos.egresoMensualPromedio > 0 ? saldo / supuestos.egresoMensualPromedio : 0;
       const sem = colchon >= 2 ? "🟢" : colchon >= 1 ? "🟡" : "🔴";
       out.push({
-        mes: `M${m + 1}`,
+        mes: usarReal ? egresosCapex[m].mes : `M${m + 1}`,
         saldo: Math.round(saldo / 1000000),
         ingreso: Math.round(ingresoEsperado / 1000000),
         egreso: Math.round(egresoEsperado / 1000000),
@@ -464,6 +478,95 @@ const KpiLiquidezRow = ({ label, formula, value, estado, umbrales }) => (
     <td className="px-2 py-1.5 text-[10px] text-stone-500">{umbrales}</td>
   </tr>
 );
+
+/* ─────────────── Tab: Egresos CAPEX por fase (flujo de caja 2 lados) ─────────────── */
+const EgresosCapexTab = ({ partidas, project, ventasTotales }) => {
+  const [version, setVersion] = useState("constructor");
+
+  const porFase = useMemo(() => capexPorFase(partidas, version), [partidas, version]);
+  const egresos = useMemo(
+    () => capexFlujoEgresos(partidas, version, { inicioObra: project?.fechaInicioObra }),
+    [partidas, version, project]
+  );
+
+  /* Lado de ingresos: 30% durante preventas/obra, 70% en escrituración (post-entrega) */
+  const flujo2Lados = useMemo(() => {
+    if (egresos.length === 0) return [];
+    const totalMeses = egresos.length;
+    const escrituraInicio = Math.max(0, totalMeses - 6); // últimos 6 meses
+    let acumNeto = 0;
+    return egresos.map((e, i) => {
+      const ingresoPreventas = (ventasTotales * 0.30) / Math.max(1, escrituraInicio);
+      const ingresoEscritura = i >= escrituraInicio ? (ventasTotales * 0.70) / Math.max(1, totalMeses - escrituraInicio) : 0;
+      const ingreso = (i < escrituraInicio ? ingresoPreventas : 0) + ingresoEscritura;
+      const egreso = e.total;
+      const neto = ingreso - egreso;
+      acumNeto += neto;
+      return {
+        mes: e.mes,
+        ingreso: Math.round(ingreso / 1000000),
+        egreso: -Math.round(egreso / 1000000),   // negativo para mostrar debajo del eje
+        neto: Math.round(acumNeto / 1000000)
+      };
+    });
+  }, [egresos, ventasTotales]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50/40 p-3 text-[12px] text-emerald-900">
+        <div>
+          <strong>Flujo de caja del proyecto — de un lado y del otro:</strong> egresos (CAPEX por fase) vs ingresos (preventas + escrituración).
+          Conectado en vivo con el módulo CAPEX edificación.
+        </div>
+        <select value={version} onChange={e => setVersion(e.target.value)} className="rounded-md border border-stone-300 bg-white px-2 py-1 text-[12px]">
+          <option value="inicial">Presupuesto inicial</option>
+          <option value="constructor">Contrato constructor</option>
+          <option value="ejecutado">Ejecutado</option>
+        </select>
+      </div>
+
+      {/* KPIs por fase */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        {FASES_INVERSION.map(f => (
+          <KpiCard key={f.id} label={`${f.icon} ${f.label}`} value={fmtCop(porFase[f.id] || 0)}
+            sub={`${porFase.total > 0 ? ((porFase[f.id] / porFase.total) * 100).toFixed(0) : 0}% del CAPEX`}
+            color={f.color === "indigo" ? "indigo" : f.color === "emerald" ? "emerald" : "amber"} />
+        ))}
+        <KpiCard label="CAPEX total" value={fmtCop(porFase.total)} color="stone" />
+      </div>
+
+      {/* Flujo de caja 2 lados */}
+      <div className="rounded-lg border border-stone-200 bg-white p-3">
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-stone-600">
+          Flujo de caja del proyecto — Ingresos (↑) vs Egresos (↓) por mes · MM COP
+        </h3>
+        {flujo2Lados.length > 0 ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={flujo2Lados} stackOffset="sign">
+              <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+              <XAxis dataKey="mes" tick={{ fontSize: 9 }} angle={-20} textAnchor="end" height={45} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v) => `$ ${Math.abs(v)} MM`} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <ReferenceLine y={0} stroke="#78716c" />
+              <Bar dataKey="ingreso" fill="#10b981" name="Ingresos (preventas + escrituración)" />
+              <Bar dataKey="egreso" fill="#f43f5e" name="Egresos (CAPEX)" />
+              <Line type="monotone" dataKey="neto" stroke="#1e40af" strokeWidth={2} dot={false} name="Caja acumulada neta" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="py-12 text-center text-[12px] text-stone-400">
+            Configura la fecha de inicio de obra y carga partidas CAPEX para ver el flujo de caja temporal.
+          </div>
+        )}
+        <div className="mt-2 rounded-md bg-stone-50 p-2 text-[11px] text-stone-600">
+          <strong>Lectura CFO:</strong> el punto más bajo de la <em>caja acumulada neta</em> (línea azul) es la <strong>máxima exposición de capital</strong> —
+          el momento en que el proyecto necesita más equity o crédito. Es la zona muerta entre obra terminada y escrituración masiva.
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /* ─────────────── Tab 3: Cronograma de Pagos ─────────────── */
 const CronogramaPagosTab = ({ pagos, partidas, project }) => {

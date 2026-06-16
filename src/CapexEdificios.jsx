@@ -2,11 +2,11 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   DollarSign, ChevronRight, ChevronDown, Plus, Upload, FileText,
   Trash2, X, Edit3, Eye, Search, Filter, AlertCircle, TrendingUp,
-  TrendingDown, ArrowRight, Layers, Hammer, Briefcase
+  TrendingDown, ArrowRight, Layers, Hammer, Briefcase, Wallet
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Line, ReferenceLine
 } from "recharts";
 import { getValor, getHistorial, getVigenteIdx, setHistorial, matchTareas, avanceTareas } from "./capexCronoLink.js";
 
@@ -68,6 +68,45 @@ export const VERSIONES = [
   { id: "ejecutado",    label: "Ejecutado (real)",             color: "rose",    short: "Ejecutado" }
 ];
 
+/* ─── Fases de inversión (clasificación financiera de cada peso) ───
+   PREOPERATIVO: todo lo que ocurre ANTES de iniciar obra (lote, estudios,
+                 licencias, estructuración, mercadeo inicial).
+   OPERATIVO:    durante la ejecución de obra (construcción, MEP, acabados,
+                 honorarios obra, intereses crédito constructor).
+   CIERRE:       al final (escrituración, reglamento PH, liquidación P.A.,
+                 postventa, garantías, impuestos finales).
+   Conecta con el flujo de caja: el momento de cada egreso depende de su fase. */
+export const FASES_INVERSION = [
+  { id: "preoperativo", label: "Pre-operativo", short: "Pre-op", color: "indigo", icon: "🏗️", descripcion: "Antes de iniciar obra: lote, estudios, licencias, mercadeo inicial" },
+  { id: "operativo",    label: "Operativo",     short: "Op",     color: "emerald", icon: "⚙️", descripcion: "Durante la obra: construcción, MEP, acabados, honorarios, intereses" },
+  { id: "cierre",       label: "Cierre",        short: "Cierre", color: "amber", icon: "🏁", descripcion: "Al final: escrituración, reglamento PH, liquidación P.A., postventa" }
+];
+
+/* Fase por defecto según capítulo (editable por partida) */
+export const FASE_POR_CAPITULO = {
+  lote:         "preoperativo",
+  estudios:     "preoperativo",
+  licencias:    "preoperativo",
+  construccion: "operativo",
+  honorarios:   "operativo",
+  comercial:    "preoperativo",   // mercadeo y sala de ventas arrancan antes de obra
+  financieros:  "operativo",      // intereses crédito corren durante obra
+  legales:      "cierre",         // escrituración y reglamento P.H. al final
+  impuestos:    "operativo",
+  imprevistos:  "operativo"
+};
+
+/* Resuelve la fase de una partida: usa partida.fase si existe, sino el default por capítulo */
+export const getFasePartida = (p) => p?.fase || FASE_POR_CAPITULO[p?.capitulo] || "operativo";
+
+/* Ventana temporal típica de cada fase respecto al cronograma de obra (para distribuir el flujo de caja).
+   offsetMesesInicio relativo al inicio de obra; durMeses = duración del desembolso. */
+export const FASE_TIMING = {
+  preoperativo: { offset: -8, dur: 8 },   // 8 meses antes del inicio de obra
+  operativo:    { offset: 0,  dur: 18 },  // durante toda la obra
+  cierre:       { offset: 16, dur: 6 }    // últimos meses + post-entrega
+};
+
 const COLOR_CLASS = {
   emerald: "bg-emerald-100 text-emerald-800 border-emerald-200",
   indigo:  "bg-indigo-100 text-indigo-800 border-indigo-200",
@@ -76,6 +115,74 @@ const COLOR_CLASS = {
   rose:    "bg-rose-100 text-rose-800 border-rose-200",
   blue:    "bg-blue-100 text-blue-800 border-blue-200",
   stone:   "bg-stone-100 text-stone-700 border-stone-200"
+};
+
+/* ─── Helpers exportables (consumidos por Tesorería y Modelo Financiero) ─── */
+
+/* Valor efectivo de una partida para una versión, aplicando override de pagos en "ejecutado" */
+export const valorEfectivo = (p, versionId, pagosPorWbs = {}) => {
+  if (versionId === "ejecutado" && pagosPorWbs[p.wbs] != null) return pagosPorWbs[p.wbs];
+  return getValor(p, versionId);
+};
+
+/* Totales de CAPEX agrupados por fase de inversión (preoperativo/operativo/cierre).
+   Devuelve { preoperativo, operativo, cierre, total } para la versión dada. */
+export const capexPorFase = (partidas = [], versionId = "constructor", pagosPorWbs = {}) => {
+  const out = { preoperativo: 0, operativo: 0, cierre: 0, total: 0 };
+  partidas.forEach(p => {
+    const v = valorEfectivo(p, versionId, pagosPorWbs) ?? valorEfectivo(p, "inicial", pagosPorWbs) ?? 0;
+    const fase = getFasePartida(p);
+    out[fase] = (out[fase] || 0) + v;
+    out.total += v;
+  });
+  return out;
+};
+
+/* Distribuye el egreso de CAPEX en una línea de tiempo mensual según la fase de cada partida.
+   Retorna [{ key, mes, date, preoperativo, operativo, cierre, total, acumulado }].
+   inicioObra: fecha ISO del inicio de obra (ancla temporal). */
+export const capexFlujoEgresos = (partidas = [], versionId = "constructor", opts = {}) => {
+  const inicioObra = opts.inicioObra ? new Date(opts.inicioObra) : new Date();
+  const pagosPorWbs = opts.pagosPorWbs || {};
+  const acc = {}; // key "YYYY-MM" -> { preoperativo, operativo, cierre }
+
+  const addToMonth = (monto, fase, offsetMeses, durMeses) => {
+    if (!monto || monto <= 0 || durMeses <= 0) return;
+    const cuota = monto / durMeses;
+    for (let i = 0; i < durMeses; i++) {
+      const d = new Date(inicioObra.getFullYear(), inicioObra.getMonth() + offsetMeses + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!acc[key]) acc[key] = { preoperativo: 0, operativo: 0, cierre: 0 };
+      acc[key][fase] += cuota;
+    }
+  };
+
+  partidas.forEach(p => {
+    const monto = valorEfectivo(p, versionId, pagosPorWbs) ?? valorEfectivo(p, "inicial", pagosPorWbs) ?? 0;
+    const fase = getFasePartida(p);
+    const t = FASE_TIMING[fase] || FASE_TIMING.operativo;
+    addToMonth(monto, fase, t.offset, t.dur);
+  });
+
+  const keys = Object.keys(acc).sort();
+  let acumulado = 0;
+  return keys.map(k => {
+    const [y, m] = k.split("-");
+    const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+    const row = acc[k];
+    const total = row.preoperativo + row.operativo + row.cierre;
+    acumulado += total;
+    return {
+      key: k,
+      mes: date.toLocaleDateString("es-CO", { month: "short", year: "2-digit" }),
+      date,
+      preoperativo: Math.round(row.preoperativo),
+      operativo: Math.round(row.operativo),
+      cierre: Math.round(row.cierre),
+      total: Math.round(total),
+      acumulado: Math.round(acumulado)
+    };
+  });
 };
 
 /* Seed: partidas iniciales para Torre Versalles */
@@ -153,10 +260,7 @@ const fmtPct = (n) => (n == null ? "—" : (n >= 0 ? "+" : "") + n.toFixed(1) + 
 
 const CapexEdificios = ({ project, tareas = [], onPartidasChange, pagosPorWbs = {} }) => {
   /* Helper que devuelve el valor "efectivo" para una versión, aplicando override de pagos en "ejecutado" */
-  const getValorEfectivo = (p, vid) => {
-    if (vid === "ejecutado" && pagosPorWbs[p.wbs] != null) return pagosPorWbs[p.wbs];
-    return getValor(p, vid);
-  };
+  const getValorEfectivo = (p, vid) => valorEfectivo(p, vid, pagosPorWbs);
   const [partidas, setPartidas] = useState(SEED_PARTIDAS);
   const [docs, setDocs] = useState(SEED_DOCS);
   const [vista, setVista] = useState("capitulos"); // capitulos | wbs | comparativo | grafico | documentos
@@ -210,7 +314,7 @@ const CapexEdificios = ({ project, tareas = [], onPartidasChange, pagosPorWbs = 
       });
     });
     return t;
-  }, [partidas]);
+  }, [partidas, pagosPorWbs]);
 
   /* Total general por versión */
   const totalGeneral = useMemo(() => {
@@ -316,6 +420,7 @@ const CapexEdificios = ({ project, tareas = [], onPartidasChange, pagosPorWbs = 
       <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-stone-200">
         {[
           { id: "capitulos",  label: "Por capítulos",        icon: Layers },
+          { id: "fases",      label: "Fases & Flujo de caja",icon: Wallet },
           { id: "wbs",        label: "WBS construcción",     icon: Hammer },
           { id: "comparativo",label: "Comparativo versiones",icon: ArrowRight },
           { id: "grafico",    label: "Gráfico",              icon: TrendingUp },
@@ -338,6 +443,7 @@ const CapexEdificios = ({ project, tareas = [], onPartidasChange, pagosPorWbs = 
         <CapitulosView
           partidas={filteredPartidas}
           totales={totales}
+          pagosPorWbs={pagosPorWbs}
           expanded={expanded}
           toggleCapitulo={(id) => setExpanded(p => ({ ...p, [id]: !p[id] }))}
           onEdit={(p) => setModal(p)}
@@ -346,10 +452,20 @@ const CapexEdificios = ({ project, tareas = [], onPartidasChange, pagosPorWbs = 
         />
       )}
 
+      {vista === "fases" && (
+        <FasesView
+          partidas={filteredPartidas}
+          pagosPorWbs={pagosPorWbs}
+          project={project}
+          onEdit={(p) => setModal(p)}
+        />
+      )}
+
       {vista === "wbs" && (
         <WbsConstruccionView
           partidas={partidas.filter(p => p.capitulo === "construccion")}
           totales={totales.construccion}
+          pagosPorWbs={pagosPorWbs}
           onEdit={(p) => setModal(p)}
           tareas={tareas}
         />
@@ -391,7 +507,7 @@ const CapexEdificios = ({ project, tareas = [], onPartidasChange, pagosPorWbs = 
 };
 
 /* ─── Vista: Por capítulos ─── */
-const CapitulosView = ({ partidas, totales, expanded, toggleCapitulo, onEdit, onDelete, variancePct }) => (
+const CapitulosView = ({ partidas, totales, pagosPorWbs = {}, expanded, toggleCapitulo, onEdit, onDelete, variancePct }) => (
   <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
     <table className="w-full text-[12px]">
       <thead className="bg-stone-50 text-[10px] uppercase tracking-wider text-stone-500">
@@ -435,7 +551,7 @@ const CapitulosView = ({ partidas, totales, expanded, toggleCapitulo, onEdit, on
                   </td>
                   <td className="px-3 py-1.5 font-mono text-[10px] text-stone-500">{p.wbs}</td>
                   {VERSIONES.map(v => {
-                    const val = getValorEfectivo(p, v.id);
+                    const val = valorEfectivo(p, v.id, pagosPorWbs);
                     const fromPagos = v.id === "ejecutado" && pagosPorWbs[p.wbs] != null;
                     const hist = getHistorial(p, v.id);
                     const fuente = p.fuentes?.[v.id] || hist[getVigenteIdx(p, v.id)]?.doc;
@@ -461,8 +577,144 @@ const CapitulosView = ({ partidas, totales, expanded, toggleCapitulo, onEdit, on
   </div>
 );
 
+/* ─── Vista: Fases de inversión + Flujo de caja ─── */
+const FASE_HEX = { preoperativo: "#6366f1", operativo: "#10b981", cierre: "#f59e0b" };
+
+const FasesView = ({ partidas, pagosPorWbs, project, onEdit }) => {
+  const [version, setVersion] = useState("constructor");
+
+  /* Totales por fase */
+  const porFase = useMemo(() => capexPorFase(partidas, version, pagosPorWbs), [partidas, version, pagosPorWbs]);
+
+  /* Partidas agrupadas por fase */
+  const partidasPorFase = useMemo(() => {
+    const g = { preoperativo: [], operativo: [], cierre: [] };
+    partidas.forEach(p => { g[getFasePartida(p)].push(p); });
+    return g;
+  }, [partidas]);
+
+  /* Flujo de egresos mensual */
+  const flujo = useMemo(
+    () => capexFlujoEgresos(partidas, version, { inicioObra: project?.fechaInicioObra, pagosPorWbs }),
+    [partidas, version, project, pagosPorWbs]
+  );
+
+  const pieData = FASES_INVERSION.map(f => ({ name: f.label, value: Math.round((porFase[f.id] || 0) / 1000000), fase: f.id }));
+
+  return (
+    <div className="space-y-4">
+      {/* Selector de versión + explicación */}
+      <div className="flex items-center justify-between rounded-md border border-stone-200 bg-stone-50/40 p-3">
+        <div className="text-[12px] text-stone-600">
+          <strong>Clasificación financiera</strong> de cada peso del CAPEX por fase. Conecta con el flujo de caja: cada egreso se desembolsa en su ventana temporal.
+        </div>
+        <select value={version} onChange={e => setVersion(e.target.value)} className="rounded-md border border-stone-300 bg-white px-2 py-1 text-[12px]">
+          {VERSIONES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+        </select>
+      </div>
+
+      {/* KPIs por fase */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {FASES_INVERSION.map(f => {
+          const monto = porFase[f.id] || 0;
+          const pct = porFase.total > 0 ? (monto / porFase.total) * 100 : 0;
+          return (
+            <div key={f.id} className={`rounded-lg border p-4 ${COLOR_CLASS[f.color]}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{f.icon}</span>
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider">{f.label}</div>
+                    <div className="text-[9px] opacity-70">{partidasPorFase[f.id].length} partidas</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-serif text-lg">{fmtCop(monto)}</div>
+                  <div className="text-[10px] opacity-70">{pct.toFixed(0)}% del CAPEX</div>
+                </div>
+              </div>
+              <div className="mt-2 text-[10px] leading-snug opacity-80">{f.descripcion}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Pie distribución por fase */}
+        <div className="rounded-lg border border-stone-200 bg-white p-3">
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-stone-600">Distribución del CAPEX por fase (MM)</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(d) => `${d.name} ${((d.value / pieData.reduce((s, x) => s + x.value, 0)) * 100).toFixed(0)}%`}>
+                {pieData.map((d, i) => <Cell key={i} fill={FASE_HEX[d.fase]} />)}
+              </Pie>
+              <Tooltip formatter={v => fmtCop(v * 1000000)} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Flujo de caja — egresos mensuales apilados por fase */}
+        <div className="rounded-lg border border-stone-200 bg-white p-3">
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-stone-600">Flujo de egresos por fase — distribución temporal (MM)</h3>
+          {flujo.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <ComposedChart data={flujo.map(r => ({ ...r, preoperativo: Math.round(r.preoperativo / 1000000), operativo: Math.round(r.operativo / 1000000), cierre: Math.round(r.cierre / 1000000), acumulado: Math.round(r.acumulado / 1000000) }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                <XAxis dataKey="mes" tick={{ fontSize: 9 }} angle={-20} textAnchor="end" height={45} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$ ${v} MM`} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="preoperativo" stackId="a" fill={FASE_HEX.preoperativo} name="Pre-op" />
+                <Bar dataKey="operativo" stackId="a" fill={FASE_HEX.operativo} name="Operativo" />
+                <Bar dataKey="cierre" stackId="a" fill={FASE_HEX.cierre} name="Cierre" />
+                <Line type="monotone" dataKey="acumulado" stroke="#1e40af" strokeWidth={2} dot={false} name="Acumulado" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : <div className="py-12 text-center text-[12px] text-stone-400">Sin fecha de inicio de obra — configúrala en el proyecto para ver el flujo temporal.</div>}
+          {flujo.length > 0 && (
+            <div className="mt-1 text-[10px] text-stone-500">Ancla: inicio de obra {project?.fechaInicioObra || "—"}. Pre-op desembolsa antes; cierre después de entrega.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabla de partidas por fase */}
+      <div className="space-y-2">
+        {FASES_INVERSION.map(f => (
+          <div key={f.id} className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+            <div className={`flex items-center justify-between border-b border-stone-100 px-3 py-2 ${COLOR_CLASS[f.color]}`}>
+              <div className="flex items-center gap-2 text-[12px] font-semibold">
+                <span>{f.icon}</span> {f.label} <span className="opacity-60">({partidasPorFase[f.id].length})</span>
+              </div>
+              <div className="font-mono text-[12px] font-semibold">{fmtCop(porFase[f.id] || 0)}</div>
+            </div>
+            {partidasPorFase[f.id].length > 0 ? (
+              <table className="w-full text-[11px]">
+                <tbody>
+                  {partidasPorFase[f.id].map(p => {
+                    const cap = CAPITULOS.find(c => c.id === p.capitulo);
+                    return (
+                      <tr key={p.id} className="border-t border-stone-100 hover:bg-stone-50/60">
+                        <td className="px-3 py-1.5">
+                          <button onClick={() => onEdit(p)} className="text-left text-stone-800 hover:text-emerald-700">{p.nombre}</button>
+                        </td>
+                        <td className="px-3 py-1.5 text-[10px] text-stone-500">{cap?.label}</td>
+                        <td className="px-3 py-1.5 font-mono text-[10px] text-stone-400">{p.wbs}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{fmtCop(valorEfectivo(p, version, pagosPorWbs))}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : <div className="px-3 py-2 text-[11px] italic text-stone-400">Sin partidas en esta fase.</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 /* ─── Vista: WBS construcción ─── */
-const WbsConstruccionView = ({ partidas, totales, onEdit, tareas = [] }) => {
+const WbsConstruccionView = ({ partidas, totales, pagosPorWbs = {}, onEdit, tareas = [] }) => {
   const findPartida = (wbs) => partidas.find(p => p.wbs === wbs);
   return (
     <div className="space-y-2">
@@ -476,7 +728,7 @@ const WbsConstruccionView = ({ partidas, totales, onEdit, tareas = [] }) => {
         const avance = avanceTareas(matched);
         const bac = p ? (getValor(p, "constructor") || getValor(p, "inicial") || 0) : 0;
         const ev = bac * avance / 100;
-        const ac = p ? (getValorEfectivo(p, "ejecutado") || 0) : 0;
+        const ac = p ? (valorEfectivo(p, "ejecutado", pagosPorWbs) || 0) : 0;
         const cpi = ac > 0 ? ev / ac : null;
         return (
           <div key={w.id} className="rounded-lg border border-stone-200 bg-white">
@@ -776,12 +1028,19 @@ const PartidaModal = ({ initial, onClose, onSave }) => {
           <button onClick={onClose} className="rounded-md p-1 text-stone-500 hover:bg-stone-100"><X className="h-4 w-4" /></button>
         </header>
         <div className="space-y-3 p-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Capítulo">
-              <select value={form.capitulo} onChange={e => setForm({ ...form, capitulo: e.target.value })} className="inp">
+              <select value={form.capitulo} onChange={e => setForm({ ...form, capitulo: e.target.value, fase: form.fase || FASE_POR_CAPITULO[e.target.value] })} className="inp">
                 {CAPITULOS.map(c => <option key={c.id} value={c.id}>{c.codigo}. {c.label}</option>)}
               </select>
             </Field>
+            <Field label="Fase de inversión">
+              <select value={form.fase || FASE_POR_CAPITULO[form.capitulo] || "operativo"} onChange={e => setForm({ ...form, fase: e.target.value })} className="inp">
+                {FASES_INVERSION.map(f => <option key={f.id} value={f.id}>{f.icon} {f.label}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Código WBS"><input value={form.wbs} onChange={e => setForm({ ...form, wbs: e.target.value })} className="inp" placeholder="Ej. 4.3.1" /></Field>
             <Field label="Tarea cronograma (opcional)">
               <input value={form.cronoTask || ""} onChange={e => setForm({ ...form, cronoTask: e.target.value })} className="inp" placeholder="Ej. estructura" />
