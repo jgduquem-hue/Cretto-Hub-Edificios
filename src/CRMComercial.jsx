@@ -12,6 +12,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, FunnelChart, Funnel, LabelList,
   AreaChart, Area, ComposedChart, RadialBarChart, RadialBar
 } from "recharts";
+import RecordatoriosCuota from "./RecordatoriosCuota.jsx";
 
 /* ════════════════════════════════════════════════════════════════════════════
    CRM Comercial — Cretto Edificios
@@ -210,7 +211,7 @@ const CRMComercial = ({ project, stakeholders = [] }) => {
       {tab === "pipeline"       && <PipelineKanban leads={leads} onUpdate={updateLead} onEdit={setEditingLead} />}
       {tab === "conversaciones" && <ConversacionesView leads={leads} mensajes={mensajes} setMensajes={setMensajes} />}
       {tab === "clientes"       && <ClientesView leads={leads} />}
-      {tab === "cartera"        && <CarteraView leads={leads} />}
+      {tab === "cartera"        && <RecordatoriosCuota leads={leads} project={project} />}
       {tab === "config"         && <ConfigView />}
 
       {(showNewLead || editingLead) && (
