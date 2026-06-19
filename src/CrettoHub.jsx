@@ -33,6 +33,7 @@ import Tesoreria from "./Tesoreria.jsx";
 import PMIReportLibrary from "./PMIReportLibrary.jsx";
 import CRMComercial from "./CRMComercial.jsx";
 import InventarioComercial from "./InventarioComercial.jsx";
+import ReportesComercial from "./ReportesComercial.jsx";
 import EmailSettings from "./EmailSettings.jsx";
 import DiccionarioProcedimientos from "./DiccionarioProcedimientos.jsx";
 import StakeholdersDB from "./StakeholdersDB.jsx";
@@ -3429,7 +3430,7 @@ function CrettoApp() {
           )}
           {screen === "crm" && <CRMComercial project={selectedProject || activeProject} stakeholders={stakeholders} />}
           {screen === "inventario" && <InventarioComercial project={selectedProject || activeProject} />}
-          {screen === "reportes-comercial" && <ComercialPlaceholder titulo="Reportes comercial" subtitulo="Avance preventas · embudo · proyección punto de equilibrio" />}
+          {screen === "reportes-comercial" && <ReportesComercial project={selectedProject || activeProject} />}
           {screen === "info-interes" && (
             <DiccionarioProcedimientos project={selectedProject || activeProject} />
           )}
