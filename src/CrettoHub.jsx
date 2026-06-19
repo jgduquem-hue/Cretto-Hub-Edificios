@@ -7,7 +7,7 @@ import {
   ListChecks, Layers, ChevronDown, ChevronUp, Edit3, Trash2,
   Download, Sparkles, ArrowUpRight, MoreHorizontal, Tag,
   MapPin, Users, Building2, Hammer, ChefHat, Lightbulb,
-  Sofa, Utensils, Wind, Flame, Trees, Pen, Briefcase,
+  Sofa, Utensils, Wind, Flame, Trees, Pen, Briefcase, Megaphone, Building,
   Share2, CheckCircle2, BookOpen, Wallet
 } from "lucide-react";
 import {
@@ -31,6 +31,8 @@ import EvmCapexCronograma from "./EvmCapexCronograma.jsx";
 import PagosProveedores, { acByWbs } from "./PagosProveedores.jsx";
 import Tesoreria from "./Tesoreria.jsx";
 import PMIReportLibrary from "./PMIReportLibrary.jsx";
+import CRMComercial from "./CRMComercial.jsx";
+import InventarioComercial from "./InventarioComercial.jsx";
 import EmailSettings from "./EmailSettings.jsx";
 import DiccionarioProcedimientos from "./DiccionarioProcedimientos.jsx";
 import StakeholdersDB from "./StakeholdersDB.jsx";
@@ -772,6 +774,13 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
       ]
     },
     {
+      label: "Comercial",
+      tools: [
+        { id: "crm",              title: "CRM",           desc: "Prospectos · embudo · asesores · seguimiento",  icon: Users,       sub: "preventas",        color: "from-fuchsia-50 to-white", iconColor: "text-fuchsia-700", neu: true },
+        { id: "inventario",       title: "Inventario",    desc: "Unidades · estado · precio · separados",        icon: Building,    sub: "47 aptos Casa 107", color: "from-pink-50 to-white",    iconColor: "text-pink-700",    neu: true }
+      ]
+    },
+    {
       label: "Stakeholders y comunicación",
       tools: [
         { id: "stakeholders", title: "Stakeholders DB ★",     desc: "Base maestra: contactos, inversionistas, proveedores, PMI",  icon: Users,   sub: "fuente única",      color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
@@ -782,7 +791,8 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
     {
       label: "Cierre y reportería",
       tools: [
-        { id: "informes-pmi", title: "Biblioteca PMI ★", desc: "12 informes con descripción + preview gráfico", icon: FileCheck, sub: "11 PMI + Inversionistas", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
+        { id: "informes-pmi",       title: "Biblioteca PMI ★",   desc: "12 informes con descripción + preview gráfico", icon: FileCheck, sub: "11 PMI + Inversionistas", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true },
+        { id: "reportes-comercial", title: "Reportes comercial ★", desc: "Avance preventas · embudo · proyección PE",     icon: Megaphone, sub: "comercial",               color: "from-fuchsia-50 to-white",  iconColor: "text-fuchsia-700", neu: true },
         { id: "informes",    title: "Informes",         desc: "Plantillas semanal · mensual · cierre", icon: FileCheck,     sub: "PMI",        color: "from-rose-50 to-white",   iconColor: "text-rose-700" },
         { id: "documentos",  title: "Documentos PMI",   desc: "11 entregables del PMBOK",              icon: FileText,      sub: "estado vivo", color: "from-stone-100 to-white", iconColor: "text-stone-700" },
         { id: "riesgos",     title: "Riesgos y cambios", desc: "Matriz 5×5 + control de cambios",     icon: AlertTriangle, sub: "registro",    color: "from-violet-50 to-white", iconColor: "text-violet-700" }
@@ -3142,6 +3152,9 @@ function CrettoApp() {
     else if (tool === "pagos") navigateTo("pagos");
     else if (tool === "tesoreria") navigateTo("tesoreria");
     else if (tool === "informes-pmi") navigateTo("informes-pmi");
+    else if (tool === "crm") navigateTo("crm");
+    else if (tool === "inventario") navigateTo("inventario");
+    else if (tool === "reportes-comercial") navigateTo("reportes-comercial");
     else if (tool === "info-interes") navigateTo("info-interes");
     else if (tool === "stakeholders") navigateTo("stakeholders");
   };
@@ -3199,6 +3212,9 @@ function CrettoApp() {
     else if (screen === "pagos") crumbs.push({ label: "Pagos a proveedores" });
     else if (screen === "tesoreria") crumbs.push({ label: "Tesorería (CFO)" });
     else if (screen === "informes-pmi") crumbs.push({ label: "Biblioteca PMI" });
+    else if (screen === "crm") crumbs.push({ label: "CRM" });
+    else if (screen === "inventario") crumbs.push({ label: "Inventario" });
+    else if (screen === "reportes-comercial") crumbs.push({ label: "Reportes comercial" });
     else if (screen === "email-settings") crumbs.push({ label: "Configuración correo" });
     else if (screen === "info-interes") crumbs.push({ label: "Información de interés" });
     else if (screen === "stakeholders") crumbs.push({ label: "Base de stakeholders" });
@@ -3411,6 +3427,9 @@ function CrettoApp() {
               pagos={pagos}
             />
           )}
+          {screen === "crm" && <CRMComercial project={selectedProject || activeProject} stakeholders={stakeholders} />}
+          {screen === "inventario" && <InventarioComercial project={selectedProject || activeProject} />}
+          {screen === "reportes-comercial" && <ComercialPlaceholder titulo="Reportes comercial" subtitulo="Avance preventas · embudo · proyección punto de equilibrio" />}
           {screen === "info-interes" && (
             <DiccionarioProcedimientos project={selectedProject || activeProject} />
           )}
@@ -3460,5 +3479,19 @@ function CrettoApp() {
     </div>
   );
 }
+
+/* ─── Placeholder de pantallas comerciales (irán creciendo 1 a 1) ─── */
+const ComercialPlaceholder = ({ titulo, subtitulo }) => (
+  <div className="mx-auto max-w-3xl px-6 py-16">
+    <div className="rounded-xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-white p-10 text-center">
+      <div className="mb-2 text-[10px] uppercase tracking-[0.15em] text-fuchsia-600">Módulo Comercial · próximamente</div>
+      <h1 className="font-serif text-3xl text-stone-900">{titulo}</h1>
+      <p className="mt-2 text-sm text-stone-600">{subtitulo}</p>
+      <div className="mt-6 inline-block rounded-md border border-stone-200 bg-white px-4 py-2 text-[12px] text-stone-500">
+        Botón creado. Pendiente: implementación funcional — iremos uno a uno.
+      </div>
+    </div>
+  </div>
+);
 
 export default CrettoApp;
