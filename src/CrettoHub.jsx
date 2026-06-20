@@ -7,7 +7,7 @@ import {
   ListChecks, Layers, ChevronDown, ChevronUp, Edit3, Trash2,
   Download, Sparkles, ArrowUpRight, MoreHorizontal, Tag,
   MapPin, Users, Building2, Hammer, ChefHat, Lightbulb,
-  Sofa, Utensils, Wind, Flame, Trees, Pen, Briefcase, Megaphone, Building,
+  Sofa, Utensils, Wind, Flame, Trees, Pen, Briefcase, Megaphone, Building, Camera,
   Share2, CheckCircle2, BookOpen, Wallet
 } from "lucide-react";
 import {
@@ -34,6 +34,7 @@ import PMIReportLibrary from "./PMIReportLibrary.jsx";
 import CRMComercial from "./CRMComercial.jsx";
 import InventarioComercial from "./InventarioComercial.jsx";
 import ReportesComercial from "./ReportesComercial.jsx";
+import BitacoraObra from "./BitacoraObra.jsx";
 import EmailSettings from "./EmailSettings.jsx";
 import DiccionarioProcedimientos from "./DiccionarioProcedimientos.jsx";
 import StakeholdersDB from "./StakeholdersDB.jsx";
@@ -769,6 +770,7 @@ const ProjectDetailScreen = ({ project, items, entregas, onTool, onInfo }) => {
       label: "Gestión operativa",
       tools: [
         { id: "pendientes",   title: "Seguimiento de actividades", desc: "Tareas anidadas, kanban y bitácora por actividad", icon: ListChecks, sub: "árbol · kanban", color: "from-rose-50 to-white", iconColor: "text-rose-700", neu: true },
+        { id: "bitacora-obra", title: "Bitácora de obra ★", desc: "Fotos por fecha · planos · modelo 3D futuro", icon: Camera, sub: "residente + obra", color: "from-orange-50 to-white", iconColor: "text-orange-700", neu: true },
         { id: "reuniones",    title: "Reuniones",        desc: "Repositorio + grabación + extracción de actividades", icon: Users,     sub: "actas vivas",     color: "from-violet-50 to-white", iconColor: "text-violet-700", neu: true },
         { id: "repo-docs",    title: "Documentos",       desc: "Repositorio por categoría (arq, técnico, legal…)",   icon: FileText,  sub: "9 categorías",    color: "from-stone-100 to-white", iconColor: "text-stone-700",  neu: true },
         { id: "info-interes", title: "Información de interés", desc: "Diccionario de procedimientos (fiducia, banco, licencias)", icon: BookOpen,  sub: "knowledge base", color: "from-emerald-50 to-white", iconColor: "text-emerald-700", neu: true }
@@ -3156,6 +3158,7 @@ function CrettoApp() {
     else if (tool === "crm") navigateTo("crm");
     else if (tool === "inventario") navigateTo("inventario");
     else if (tool === "reportes-comercial") navigateTo("reportes-comercial");
+    else if (tool === "bitacora-obra") navigateTo("bitacora-obra");
     else if (tool === "info-interes") navigateTo("info-interes");
     else if (tool === "stakeholders") navigateTo("stakeholders");
   };
@@ -3216,6 +3219,7 @@ function CrettoApp() {
     else if (screen === "crm") crumbs.push({ label: "CRM" });
     else if (screen === "inventario") crumbs.push({ label: "Inventario" });
     else if (screen === "reportes-comercial") crumbs.push({ label: "Reportes comercial" });
+    else if (screen === "bitacora-obra") crumbs.push({ label: "Bitácora de obra" });
     else if (screen === "email-settings") crumbs.push({ label: "Configuración correo" });
     else if (screen === "info-interes") crumbs.push({ label: "Información de interés" });
     else if (screen === "stakeholders") crumbs.push({ label: "Base de stakeholders" });
@@ -3431,6 +3435,7 @@ function CrettoApp() {
           {screen === "crm" && <CRMComercial project={selectedProject || activeProject} stakeholders={stakeholders} />}
           {screen === "inventario" && <InventarioComercial project={selectedProject || activeProject} />}
           {screen === "reportes-comercial" && <ReportesComercial project={selectedProject || activeProject} />}
+          {screen === "bitacora-obra" && <BitacoraObra project={selectedProject || activeProject} />}
           {screen === "info-interes" && (
             <DiccionarioProcedimientos project={selectedProject || activeProject} />
           )}
