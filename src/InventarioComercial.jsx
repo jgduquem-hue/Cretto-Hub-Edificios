@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import PlanoInteractivo from "./PlanoInteractivo.jsx";
 import {
   Building, Home, Car, Package, FileText, Image as ImageIcon, Edit3,
   Plus, X, Check, Search, Filter, Eye, Upload, Trash2, Download,
@@ -266,6 +267,7 @@ const InventarioComercial = ({ project }) => {
 
   const TABS = [
     { id: "plano",   label: "Vista plano",      icon: Grid3x3 },
+    { id: "interactivo", label: "Plano interactivo ★", icon: MapPin },
     { id: "tabla",   label: "Tabla general",    icon: Layers },
     { id: "graficos", label: "Gráficos",        icon: BarChart },
     { id: "parqueaderos", label: "Parqueaderos & Depósitos", icon: Car }
@@ -329,6 +331,7 @@ const InventarioComercial = ({ project }) => {
       </div>
 
       {tab === "plano"   && <PlanoView unidades={unidades} pisoActivo={pisoActivo} setPisoActivo={setPisoActivo} onSelect={setSeleccionada} />}
+      {tab === "interactivo" && <PlanoInteractivo project={project} unidades={unidades} onUpdateUnidad={updateUnidad} onOpenUnidad={setSeleccionada} />}
       {tab === "tabla"   && <TablaView unidades={unidades} leads={leads} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} filtroTipo={filtroTipo} setFiltroTipo={setFiltroTipo} onSelect={setSeleccionada} />}
       {tab === "graficos" && <GraficosView unidades={unidades} />}
       {tab === "parqueaderos" && <ParqueaderosView unidades={unidades} />}
