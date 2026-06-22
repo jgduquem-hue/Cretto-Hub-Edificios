@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Calendar, ListTree, BarChart3, Plus, X, ChevronRight, ChevronDown,
-  Zap, AlertTriangle, Trash2, CheckCircle2, Circle, Diamond, Info
+  Zap, AlertTriangle, Trash2, CheckCircle2, Circle, Diamond, Info, Upload, Download, FileText
 } from "lucide-react";
+import { importarArchivo, PLANTILLA_CSV } from "./cronoImport.js";
 
 /* ────────────────────────────────────────────────────────────────
    Cronograma Pro — vista tipo MS Project para Cretto Hub
@@ -178,6 +179,7 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
   const [collapsedPhases, setCollapsedPhases] = useState(new Set());
   const [editing, setEditing] = useState(null);     // task object or "new"
   const [filterPhase, setFilterPhase] = useState("__all__");
+  const [showImport, setShowImport] = useState(false);
 
   // CPM map: id → enriched task
   const cpm = useMemo(() => computeCPM(tareas), [tareas]);
@@ -277,14 +279,23 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
               {tareas.length} actividades · {phases.length} fases · {stats.criticalCount} en ruta crítica
             </p>
           </div>
-          <button
-            onClick={() => setEditing({ __isNew: true, fase: phases[0]?.name || "Definición", tarea: "", inicio: toISODate(new Date()), fin: toISODate(addDays(new Date(), 5)), baselineInicio: toISODate(new Date()), baselineFin: toISODate(addDays(new Date(), 5)), avance: 0, color: "#1F3D2E", dep: [], dependencies: [], isMilestone: false })}
-            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800"
-          >
-            <Plus className="h-3.5 w-3.5" /> Nueva actividad
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+            >
+              <Upload className="h-3.5 w-3.5" /> Importar MS Project
+            </button>
+            <button
+              onClick={() => setEditing({ __isNew: true, fase: phases[0]?.name || "Definición", tarea: "", inicio: toISODate(new Date()), fin: toISODate(addDays(new Date(), 5)), baselineInicio: toISODate(new Date()), baselineFin: toISODate(addDays(new Date(), 5)), avance: 0, color: "#1F3D2E", dep: [], dependencies: [], isMilestone: false })}
+              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800"
+            >
+              <Plus className="h-3.5 w-3.5" /> Nueva actividad
+            </button>
+          </div>
         </div>
       </div>
+      {showImport && <ImportarMSProjectModal onClose={() => setShowImport(false)} onImport={(data) => { onTareasChange(data.tareas); setShowImport(false); }} />}
 
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
@@ -1549,6 +1560,159 @@ const DepsInfoBox = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Modal de importación MS Project (XML / CSV / advertencia para .mpp)
+   ════════════════════════════════════════════════════════════════════════════ */
+const ImportarMSProjectModal = ({ onClose, onImport }) => {
+  const [drag, setDrag] = useState(false);
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef(null);
+
+  const procesar = async (file) => {
+    setError("");
+    setPreview(null);
+    setLoading(true);
+    try {
+      const data = await importarArchivo(file);
+      setPreview(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDrag(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) procesar(file);
+  };
+
+  const descargarPlantilla = () => {
+    const blob = new Blob([PLANTILLA_CSV], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plantilla-cronograma-cretto.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-lg bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        <header className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-emerald-700" />
+            <h3 className="font-serif text-lg">Importar cronograma desde MS Project</h3>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-stone-500 hover:bg-stone-100"><X className="h-4 w-4" /></button>
+        </header>
+
+        <div className="p-5 space-y-4">
+          {/* Guía formatos */}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[12px]">
+            <div className="font-semibold text-amber-900 mb-1">📂 Formatos aceptados</div>
+            <ul className="text-amber-900 space-y-1">
+              <li><strong>✅ XML</strong> — exportado desde MS Project (recomendado): conserva fechas, dependencias, hitos, avance, niveles de WBS</li>
+              <li><strong>✅ CSV / TSV</strong> — Excel exportado a CSV con columnas Tarea, Fase, Inicio, Fin, Avance...</li>
+              <li><strong>❌ .MPP</strong> — formato binario propietario, <strong>no se puede leer en navegador</strong>. Convierte primero a XML (instrucciones abajo si lo intentas).</li>
+            </ul>
+          </div>
+
+          {/* Zona de drop */}
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={onDrop}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 transition-all ${drag ? "border-emerald-500 bg-emerald-50" : "border-stone-300 bg-stone-50 hover:bg-stone-100"}`}
+          >
+            <Upload className="h-10 w-10 text-stone-400" />
+            <div className="font-medium text-stone-800">Arrastra el archivo aquí o haz click</div>
+            <div className="text-[11px] text-stone-500">.xml · .csv · .tsv (máx 20 MB)</div>
+            <input ref={inputRef} type="file" accept=".xml,.csv,.tsv,.mpp,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && procesar(e.target.files[0])} />
+          </label>
+
+          {loading && <div className="text-center text-[12px] text-stone-500">Procesando archivo…</div>}
+
+          {error && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-[12px] text-rose-900 whitespace-pre-line">
+              <AlertTriangle className="inline h-4 w-4 mr-1" />
+              {error}
+            </div>
+          )}
+
+          {preview && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+                <strong className="text-emerald-900">Archivo válido</strong>
+              </div>
+              <div className="text-[12px] text-emerald-900 space-y-0.5">
+                <div>📋 Proyecto: <strong>{preview.projectName}</strong></div>
+                <div>📌 Tareas detectadas: <strong>{preview.total}</strong></div>
+                <div>🏷️ Fases: {preview.fases.join(" · ") || "Sin fases"}</div>
+              </div>
+              <div className="mt-2 max-h-40 overflow-y-auto rounded border border-emerald-200 bg-white p-2 text-[10px] font-mono">
+                {preview.tareas.slice(0, 8).map(t => (
+                  <div key={t.id} className="border-b border-stone-100 py-0.5">
+                    {t.isMilestone ? "🔶 " : "▸ "}
+                    <strong>{t.tarea}</strong> · {t.inicio} → {t.fin} · {t.avance}%
+                  </div>
+                ))}
+                {preview.tareas.length > 8 && <div className="text-stone-400 pt-1">…y {preview.tareas.length - 8} más</div>}
+              </div>
+              <div className="mt-2 rounded-md bg-amber-100 p-2 text-[11px] text-amber-900">
+                ⚠ <strong>Advertencia</strong>: importar reemplaza el cronograma actual. Considera exportar el actual primero.
+              </div>
+            </div>
+          )}
+
+          {/* Plantilla CSV */}
+          <div className="rounded-lg border border-stone-200 bg-white p-3 text-[12px]">
+            <div className="flex items-center justify-between">
+              <div>
+                <strong className="text-stone-800">¿No tienes MS Project?</strong>
+                <div className="text-[11px] text-stone-600">Descarga la plantilla CSV con la estructura recomendada para Casa 107.</div>
+              </div>
+              <button onClick={descargarPlantilla} className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-[11px] text-stone-700 hover:bg-stone-50">
+                <Download className="h-3 w-3" /> Plantilla CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Instrucción para exportar a XML */}
+          <details className="rounded-lg border border-stone-200 bg-white p-3 text-[12px]">
+            <summary className="cursor-pointer font-semibold text-stone-800">¿Cómo exportar de MS Project a XML?</summary>
+            <ol className="mt-2 list-decimal pl-5 space-y-1 text-stone-700">
+              <li>Abre tu archivo <code className="rounded bg-stone-100 px-1 font-mono text-[10px]">.mpp</code> en Microsoft Project</li>
+              <li>Menú <strong>Archivo → Guardar Como…</strong></li>
+              <li>En "Tipo de archivo" elige <strong>XML (*.xml)</strong></li>
+              <li>Click "Guardar". MS Project produce un único archivo .xml con todas las tareas, fechas, dependencias y avance.</li>
+              <li>Arrastra ese .xml aquí o haz click para seleccionarlo</li>
+            </ol>
+            <div className="mt-2 text-[11px] text-stone-500">El XML es estándar y conserva el 100% de la información estructural del .mpp (no de los recursos custom ni macros, que el hub no necesita).</div>
+          </details>
+        </div>
+
+        <footer className="flex justify-end gap-2 border-t border-stone-200 bg-stone-50 px-4 py-2.5">
+          <button onClick={onClose} className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-[12px] text-stone-700">Cancelar</button>
+          <button
+            onClick={() => onImport(preview)}
+            disabled={!preview}
+            className="rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-emerald-800 disabled:opacity-40"
+          >
+            Importar {preview ? `${preview.total} tareas` : ""}
+          </button>
+        </footer>
+      </div>
     </div>
   );
 };
