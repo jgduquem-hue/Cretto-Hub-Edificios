@@ -337,12 +337,12 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
 
         {view === "gantt" && (
           <>
-            {/* Modo de visualización: Plan / Real / Comparativo */}
+            {/* Modo de visualización: Presupuestado / Real / Comparativo */}
             <div className="inline-flex rounded-md border border-stone-200 bg-stone-50 p-0.5">
               {[
-                { id: "plan", label: "Plan", title: "Solo línea base (planificación original)" },
-                { id: "real", label: "Real", title: "Solo ejecución actual" },
-                { id: "comparativo", label: "Comparativo", title: "Plan vs Real en paralelo" }
+                { id: "plan", label: "Presupuestado", title: "Solo el plan original (línea base congelada)" },
+                { id: "real", label: "Real / Ejecutado", title: "Solo fechas reales de obra" },
+                { id: "comparativo", label: "Comparativo", title: "Presupuestado vs Real en paralelo" }
               ].map(m => (
                 <button
                   key={m.id}
@@ -390,9 +390,31 @@ const CronogramaProScreen = ({ tareas, onTareasChange, onInfo }) => {
           onChange={e => setFilterPhase(e.target.value)}
           className="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs"
         >
-          <option value="__all__">Todas las fases</option>
+          <option value="__all__">Todas las fases ({phases.length})</option>
           {phases.map(p => <option key={p.name} value={p.name}>{p.wbs} · {p.name}</option>)}
         </select>
+        <button
+          onClick={() => {
+            const nombre = prompt("Nombre de la nueva fase (ej. \"Pre-entrega\", \"Acabados piso 5\")");
+            if (!nombre || !nombre.trim()) return;
+            const fase = nombre.trim();
+            /* Crear actividad placeholder en la nueva fase para que aparezca en el EDT */
+            setEditing({
+              __isNew: true,
+              fase,
+              tarea: `Inicio de ${fase}`,
+              inicio: toISODate(new Date()),
+              fin: toISODate(addDays(new Date(), 5)),
+              baselineInicio: toISODate(new Date()),
+              baselineFin: toISODate(addDays(new Date(), 5)),
+              avance: 0, color: "#1F3D2E", dep: [], dependencies: [], isMilestone: false
+            });
+          }}
+          className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50"
+          title="Crear una fase nueva (se crea con una primera actividad placeholder)"
+        >
+          <Plus className="h-3 w-3" /> Nueva fase
+        </button>
 
         <div className="ml-auto flex items-center gap-3 text-[11px] text-stone-500">
           <span>✓ {stats.completed} hechas</span>
@@ -788,7 +810,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                           background: barColor, opacity: 0.95,
                           boxShadow: "0 1px 2px rgba(0,0,0,0.08)"
                         }}
-                        title={`Plan: ${t.tarea} · ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
+                        title={`Presupuestado: ${t.tarea} · ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)} · ${daysBetween(t.baselineInicio, t.baselineFin)}d`}
                       >
                         {baseW > 80 && (
                           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium text-white">
@@ -801,7 +823,7 @@ const GanttView = ({ phases, cpm, minDate, totalDays, zoom = "month", showCritic
                       <div
                         className="absolute h-1.5 rounded-sm border border-stone-500/60"
                         style={{ top: 5, left: baseStartX, width: baseW, background: "rgba(120,113,108,0.15)" }}
-                        title={`Plan: ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)}`}
+                        title={`Presupuestado: ${fmtDate(t.baselineInicio)} → ${fmtDate(t.baselineFin)} · ${daysBetween(t.baselineInicio, t.baselineFin)}d`}
                       />
                     )
                   )}
@@ -969,7 +991,7 @@ const EDT_DEFAULT_WIDTHS = {
 };
 const EDT_MIN_W = 40;
 
-const ResizableTh = ({ col, widths, setWidths, align = "left", children }) => {
+const ResizableTh = ({ col, widths, setWidths, align = "left", title, children }) => {
   const onMouseDown = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -991,7 +1013,7 @@ const ResizableTh = ({ col, widths, setWidths, align = "left", children }) => {
     window.addEventListener("mouseup", up);
   };
   return (
-    <th className="relative select-none px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ textAlign: align }}>
+    <th title={title} className="relative select-none px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ textAlign: align }}>
       {children}
       <span
         onMouseDown={onMouseDown}
@@ -1049,9 +1071,9 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas, collapsedPhases, o
             <tr>
               <ResizableTh col="wbs" widths={colWidths} setWidths={setColWidths}>WBS</ResizableTh>
               <ResizableTh col="tarea" widths={colWidths} setWidths={setColWidths}>Actividad</ResizableTh>
-              <ResizableTh col="dias" widths={colWidths} setWidths={setColWidths} align="right">Días</ResizableTh>
-              <ResizableTh col="inicio" widths={colWidths} setWidths={setColWidths}>Inicio</ResizableTh>
-              <ResizableTh col="fin" widths={colWidths} setWidths={setColWidths}>Fin</ResizableTh>
+              <ResizableTh col="dias" widths={colWidths} setWidths={setColWidths} align="right" title="Duración en días (click para editar)">Duración</ResizableTh>
+              <ResizableTh col="inicio" widths={colWidths} setWidths={setColWidths} title="Inicio real / ejecutado">Inicio real</ResizableTh>
+              <ResizableTh col="fin" widths={colWidths} setWidths={setColWidths} title="Fin real / ejecutado">Fin real</ResizableTh>
               <ResizableTh col="predecesores" widths={colWidths} setWidths={setColWidths}>Predecesores</ResizableTh>
               <ResizableTh col="holgura" widths={colWidths} setWidths={setColWidths} align="right">Holgura</ResizableTh>
               <ResizableTh col="estado" widths={colWidths} setWidths={setColWidths}>Estado</ResizableTh>
@@ -1111,10 +1133,10 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas, collapsedPhases, o
                           ) : (
                             <span
                               onClick={(e) => { e.stopPropagation(); if (onTareasChange) setEditingDuration({ id: t.id, value: c?.duracion || 1 }); }}
-                              className={`inline-block min-w-[24px] rounded px-1 font-mono text-[11px] text-stone-700 ${onTareasChange ? "cursor-text hover:bg-emerald-100" : ""}`}
+                              className={`inline-block min-w-[28px] rounded px-1 font-mono text-[11px] font-semibold text-stone-700 ${onTareasChange ? "cursor-text hover:bg-emerald-100" : ""}`}
                               title={onTareasChange ? "Click para editar duración" : ""}
                             >
-                              {c?.duracion || 0}
+                              {c?.duracion || 0}d
                             </span>
                           )}
                         </td>
@@ -1276,9 +1298,17 @@ const TaskDrawer = ({ task, tareas, phases, onClose, onSave, onDelete }) => {
       <div className="fixed inset-0 z-40 bg-stone-900/30 backdrop-blur-[2px]" onClick={onClose} />
       <aside className="fixed right-0 top-0 z-50 h-screen w-full max-w-md overflow-y-auto bg-white shadow-2xl">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-white px-5 py-3">
-          <div>
+          <div className="flex-1">
             <div className="text-[10px] uppercase tracking-wider text-stone-400">{isNew ? "Nueva actividad" : "Editar actividad"}</div>
-            <div className="text-[15px] font-semibold text-stone-900 truncate">{form.tarea || "(sin nombre)"}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-[15px] font-semibold text-stone-900 truncate">{form.tarea || "(sin nombre)"}</div>
+              {form.inicio && form.fin && (
+                <span className="rounded bg-stone-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-stone-700" title="Duración real">
+                  {daysBetween(form.inicio, form.fin)} días
+                </span>
+              )}
+              {form.isMilestone && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">HITO</span>}
+            </div>
           </div>
           <button onClick={onClose} className="rounded-md p-1 text-stone-500 hover:bg-stone-100"><X className="h-4 w-4" /></button>
         </header>
@@ -1368,44 +1398,82 @@ const TaskDrawer = ({ task, tareas, phases, onClose, onSave, onDelete }) => {
             </span>
           </Field>
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Inicio">
-              <input
-                type="date"
-                value={form.inicio || ""}
-                onChange={e => setForm({ ...form, inicio: e.target.value })}
-                className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
-              />
-            </Field>
-            <Field label="Fin">
-              <input
-                type="date"
-                value={form.fin || ""}
-                onChange={e => setForm({ ...form, fin: e.target.value })}
-                className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
-              />
-            </Field>
+          {/* Plan presupuestado (línea base) */}
+          <div className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-semibold text-indigo-900">📘 Plan / Presupuestado</div>
+                <div className="text-[10px] text-indigo-700">Lo planeado al firmar — congelado como referencia para medir desviaciones</div>
+              </div>
+              {form.baselineInicio && form.baselineFin && (
+                <div className="rounded bg-indigo-100 px-2 py-0.5 text-[11px] font-mono font-semibold text-indigo-800">
+                  {daysBetween(form.baselineInicio, form.baselineFin)} días
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Inicio plan">
+                <input
+                  type="date"
+                  value={form.baselineInicio || ""}
+                  onChange={e => setForm({ ...form, baselineInicio: e.target.value })}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
+                />
+              </Field>
+              <Field label="Fin plan">
+                <input
+                  type="date"
+                  value={form.baselineFin || ""}
+                  onChange={e => setForm({ ...form, baselineFin: e.target.value })}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
+                />
+              </Field>
+            </div>
           </div>
 
-          {/* Baseline */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Línea base inicio">
-              <input
-                type="date"
-                value={form.baselineInicio || ""}
-                onChange={e => setForm({ ...form, baselineInicio: e.target.value })}
-                className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
-              />
-            </Field>
-            <Field label="Línea base fin">
-              <input
-                type="date"
-                value={form.baselineFin || ""}
-                onChange={e => setForm({ ...form, baselineFin: e.target.value })}
-                className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
-              />
-            </Field>
+          {/* Real / Ejecutado */}
+          <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-semibold text-emerald-900">🟢 Real / Ejecutado</div>
+                <div className="text-[10px] text-emerald-700">Fechas reales (o re-planificadas) que se mueven con la obra</div>
+              </div>
+              {form.inicio && form.fin && (
+                <div className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-mono font-semibold text-emerald-800">
+                  {daysBetween(form.inicio, form.fin)} días
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Inicio real">
+                <input
+                  type="date"
+                  value={form.inicio || ""}
+                  onChange={e => setForm({ ...form, inicio: e.target.value })}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
+                />
+              </Field>
+              <Field label="Fin real">
+                <input
+                  type="date"
+                  value={form.fin || ""}
+                  onChange={e => setForm({ ...form, fin: e.target.value })}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
+                />
+              </Field>
+            </div>
+            {/* Desviación */}
+            {form.baselineInicio && form.baselineFin && form.inicio && form.fin && (() => {
+              const planDur = daysBetween(form.baselineInicio, form.baselineFin);
+              const realDur = daysBetween(form.inicio, form.fin);
+              const delta = realDur - planDur;
+              if (delta === 0) return <div className="mt-2 text-[10px] text-emerald-700">✓ Mismo plazo del plan</div>;
+              return (
+                <div className={`mt-2 text-[10px] font-medium ${delta > 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                  {delta > 0 ? "⚠" : "🚀"} {delta > 0 ? "+" : ""}{delta} días vs plan ({planDur}d planeados)
+                </div>
+              );
+            })()}
           </div>
 
           {/* Progress + color */}
