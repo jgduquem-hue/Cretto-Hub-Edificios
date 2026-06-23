@@ -160,15 +160,25 @@ const CronogramaProyectoScreen = ({ project }) => {
           <div className="border-b border-stone-200 bg-stone-50 px-4 py-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-stone-600">Línea de tiempo</h3>
           </div>
-          <div className="p-4">
+          <div className="p-4 pt-8">
             <div className="relative">
-              {/* Meses */}
-              <div className="relative mb-2 h-5 border-b border-stone-200">
+              {/* Meses — etiquetas rotadas + cambio de año destacado */}
+              <div className="relative mb-3 h-14 border-b border-stone-200">
                 {meses.map((m, idx) => {
                   const pct = posPct(m.toISOString().slice(0, 10));
+                  const mes = m.toLocaleDateString("es-CO", { month: "short" }).replace(".", "");
+                  const cambioAño = idx === 0 || m.getFullYear() !== meses[idx - 1].getFullYear();
                   return (
-                    <div key={idx} className="absolute -translate-x-1/2 text-[9px] text-stone-500" style={{ left: `${pct}%` }}>
-                      {m.toLocaleDateString("es-CO", { month: "short", year: "2-digit" })}
+                    <div key={idx} className="absolute top-0 flex flex-col items-center" style={{ left: `${pct}%` }}>
+                      {/* Tick mark */}
+                      <div className={`w-px ${cambioAño ? "h-3 bg-stone-400" : "h-2 bg-stone-300"}`}></div>
+                      {/* Etiqueta del mes inclinada */}
+                      <div
+                        className="origin-top-left whitespace-nowrap text-[9px] text-stone-600 font-mono"
+                        style={{ transform: "rotate(-40deg)", marginTop: "2px" }}
+                      >
+                        {mes}{cambioAño && <span className="ml-0.5 font-bold text-stone-800">'{String(m.getFullYear()).slice(-2)}</span>}
+                      </div>
                     </div>
                   );
                 })}
@@ -176,7 +186,7 @@ const CronogramaProyectoScreen = ({ project }) => {
               {/* Línea hoy */}
               {today >= rango.min && today <= rango.max && (
                 <div className="absolute top-0 h-full border-l-2 border-dashed border-rose-400" style={{ left: `${posPct(today.toISOString().slice(0, 10))}%` }}>
-                  <span className="absolute -top-3 -translate-x-1/2 rounded bg-rose-500 px-1 py-0.5 text-[8px] font-semibold uppercase text-white">Hoy</span>
+                  <span className="absolute -top-7 -translate-x-1/2 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-white shadow">Hoy</span>
                 </div>
               )}
               {/* Filas por fase */}
