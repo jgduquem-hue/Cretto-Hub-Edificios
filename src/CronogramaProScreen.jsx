@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
-  Calendar, ListTree, BarChart3, Plus, X, ChevronRight, ChevronDown,
+  Calendar, ListTree, BarChart3, Plus, X, ChevronRight, ChevronDown, ChevronUp,
   Zap, AlertTriangle, Trash2, CheckCircle2, Circle, Diamond, Info, Upload, Download, FileText
 } from "lucide-react";
 import { importarArchivo, PLANTILLA_CSV } from "./cronoImport.js";
@@ -1027,6 +1027,63 @@ const ResizableTh = ({ col, widths, setWidths, align = "left", title, children }
 const EDTView = ({ phases, cpm, showCritical, onEdit, tareas, collapsedPhases, onTogglePhase, onTareasChange }) => {
   const [colWidths, setColWidths] = useState(EDT_DEFAULT_WIDTHS);
   const [editingDuration, setEditingDuration] = useState(null); // { id, value }
+  const [contextMenu, setContextMenu] = useState(null); // { task, x, y }
+
+  /* Cerrar menú al click fuera / ESC */
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
+  }, [contextMenu]);
+
+  const insertarTarea = (taskRef, posicion) => {
+    if (!onTareasChange) return;
+    const idx = tareas.findIndex(t => t.id === taskRef.id);
+    if (idx < 0) return;
+    const nuevoId = Math.max(0, ...tareas.map(t => t.id)) + 1;
+    const baseFecha = taskRef.inicio || toISODate(new Date());
+    const finFecha = toISODate(addDays(parseDate(baseFecha), 3));
+    const nueva = {
+      id: nuevoId,
+      tarea: "Nueva actividad",
+      fase: taskRef.fase,
+      inicio: baseFecha,
+      fin: finFecha,
+      baselineInicio: baseFecha,
+      baselineFin: finFecha,
+      avance: 0,
+      color: "#1F3D2E",
+      dep: [],
+      dependencies: [],
+      isMilestone: false
+    };
+    const insertIdx = posicion === "arriba" ? idx : idx + 1;
+    const updated = [...tareas.slice(0, insertIdx), nueva, ...tareas.slice(insertIdx)];
+    onTareasChange(updated);
+    setContextMenu(null);
+    /* Abrir el editor de la nueva fila inmediatamente */
+    setTimeout(() => onEdit(nueva), 50);
+  };
+
+  const duplicarTarea = (taskRef) => {
+    if (!onTareasChange) return;
+    const idx = tareas.findIndex(t => t.id === taskRef.id);
+    const nuevoId = Math.max(0, ...tareas.map(t => t.id)) + 1;
+    const copia = { ...taskRef, id: nuevoId, tarea: `${taskRef.tarea} (copia)` };
+    const updated = [...tareas.slice(0, idx + 1), copia, ...tareas.slice(idx + 1)];
+    onTareasChange(updated);
+    setContextMenu(null);
+  };
+
+  const eliminarTarea = (taskRef) => {
+    if (!onTareasChange) return;
+    if (!confirm(`¿Eliminar la actividad "${taskRef.tarea}"?`)) { setContextMenu(null); return; }
+    onTareasChange(tareas.filter(t => t.id !== taskRef.id));
+    setContextMenu(null);
+  };
 
   const onDuracionCommit = (taskId, newDuracion) => {
     const d = parseInt(newDuracion);
@@ -1107,7 +1164,9 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas, collapsedPhases, o
                       <tr
                         key={t.id}
                         onClick={() => onEdit(t)}
+                        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ task: t, x: e.clientX, y: e.clientY }); }}
                         className={`cursor-pointer border-b border-stone-100 hover:bg-emerald-50 ${isCrit && showCritical ? "bg-rose-50/30" : ""}`}
+                        title="Click izquierdo: editar · Click derecho: opciones de inserción"
                       >
                         <td className="px-3 py-2 pl-8 font-mono text-[11px] text-stone-500 truncate">{t.wbs}</td>
                         <td className="px-3 py-2 text-[13px] text-stone-800 truncate">
@@ -1156,6 +1215,51 @@ const EDTView = ({ phases, cpm, showCritical, onEdit, tareas, collapsedPhases, o
           </tbody>
         </table>
       </div>
+
+      {/* Context menu (click derecho) */}
+      {contextMenu && (
+        <div
+          className="fixed z-[80] min-w-[200px] rounded-lg border border-stone-200 bg-white py-1 shadow-2xl"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="border-b border-stone-100 px-3 py-1.5 text-[10px] uppercase tracking-wider text-stone-500 truncate">
+            {contextMenu.task.tarea}
+          </div>
+          <button
+            onClick={() => insertarTarea(contextMenu.task, "arriba")}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-stone-800 hover:bg-emerald-50"
+          >
+            <ChevronUp className="h-3.5 w-3.5 text-emerald-700" /> Insertar actividad <strong>arriba</strong>
+          </button>
+          <button
+            onClick={() => insertarTarea(contextMenu.task, "abajo")}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-stone-800 hover:bg-emerald-50"
+          >
+            <ChevronDown className="h-3.5 w-3.5 text-emerald-700" /> Insertar actividad <strong>abajo</strong>
+          </button>
+          <div className="my-1 border-t border-stone-100"></div>
+          <button
+            onClick={() => duplicarTarea(contextMenu.task)}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-stone-800 hover:bg-stone-50"
+          >
+            <Plus className="h-3.5 w-3.5 text-stone-600" /> Duplicar actividad
+          </button>
+          <button
+            onClick={() => { onEdit(contextMenu.task); setContextMenu(null); }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-stone-800 hover:bg-stone-50"
+          >
+            <Info className="h-3.5 w-3.5 text-stone-600" /> Editar actividad
+          </button>
+          <div className="my-1 border-t border-stone-100"></div>
+          <button
+            onClick={() => eliminarTarea(contextMenu.task)}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-rose-700 hover:bg-rose-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Eliminar
+          </button>
+        </div>
+      )}
     </div>
   );
 };
